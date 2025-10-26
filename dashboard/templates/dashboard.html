@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+  <div class="py-4">
+    <h2 class="text-secondary">Model Performance</h2>
+    <p><strong>Model Accuracy:</strong> {{ accuracy }}%</p>
+    <p><strong>Loss:</strong> {{ loss }}</p>
+  </div>
+{% endblock %}
