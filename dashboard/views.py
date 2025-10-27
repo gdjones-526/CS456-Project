@@ -1,8 +1,16 @@
 from django.shortcuts import render
 
 def dashboard(request):
+    models = [
+        "Linear Regression",
+        "Logistic Regression",
+        "Decision Tree",
+        "Random Forest",
+        "Gradient Boosting",
+        "SVM",
+        "Neural Network",
+    ]
     context = {
-        "accuracy": 94,
-        "loss": 0.06
+        "models": models,
     }
     return render(request, "dashboard.html", context)
