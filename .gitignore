@@ -206,5 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# datasets
+# data and such
 /datasets/
+/figures/
+/trained_models/
