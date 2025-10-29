@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Train Model - ML Platform</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: #f8f9fa;
+    }
+    
+    .navbar-custom {
+      background-color: #212529;
+      box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    }
+    
+    .main-container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .card {
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .algorithm-card {
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      height: 100%;
+    }
+    
+    .algorithm-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 20px rgba(0,0,0,.15);
+    }
+    
+    .algorithm-card.selected {
+      border-color: #0d6efd;
+      background-color: #e7f3ff;
+    }
+    
+    .algorithm-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+    
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #e9ecef;
+      color: #6c757d;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .step.active .step-number {
+      background-color: #0d6efd;
+      color: white;
+    }
+    
+    .step.completed .step-number {
+      background-color: #198754;
+      color: white;
+    }
+    
+    .step-line {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      right: -50%;
+      height: 2px;
+      background-color: #e9ecef;
+      z-index: 1;
+    }
+    
+    .step:last-child .step-line {
+      display: none;
+    }
+    
+    .step.completed .step-line {
+      background-color: #198754;
+    }
+    
+    .column-tag {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      margin: 0.25rem;
+      background-color: #e9ecef;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .column-tag:hover {
+      background-color: #dee2e6;
+    }
+    
+    .column-tag.selected {
+      background-color: #0d6efd;
+      color: white;
+    }
+    
+    .training-info {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 0.5rem;
+    }
+    
+    .param-section {
+      display: none;
+    }
+    
+    .param-section.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{% url 'file_detail' dataset.pk %}">
+        <i class="bi bi-arrow-left"></i> Back to Dataset
+      </a>
+      <span class="navbar-text text-white">
+        <i class="bi bi-person-circle"></i> {{ user.username }}
+      </span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Django Messages -->
+    {% if messages %}
+    <div class="mb-4">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="card">
+      <div class="card-body">
+        <h2 class="mb-3">
+          <i class="bi bi-robot text-primary"></i> Train Machine Learning Model
+        </h2>
+        <div class="training-info">
+          <h5><i class="bi bi-file-earmark-spreadsheet"></i> Dataset: {{ dataset.original_name }}</h5>
+          <p class="mb-0">Configure your model training parameters and start training</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+      <div class="step active" id="step1Indicator">
+        <div class="step-number">1</div>
+        <div class="step-label">Algorithm</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step" id="step2Indicator">
+        <div class="step-number">2</div>
+        <div class="step-label">Target Variable</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step" id="step3Indicator">
+        <div class="step-number">3</div>
+        <div class="step-label">Configuration</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step" id="step4Indicator">
+        <div class="step-number">4</div>
+        <div class="step-label">Review & Train</div>
+      </div>
+    </div>
+
+    <form method="post" id="trainingForm">
+      {% csrf_token %}
+      
+      <!-- Step 1: Algorithm Selection -->
+      <div class="training-step" id="step1">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-cpu"></i> Step 1: Select Algorithm</h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted mb-4">Choose a machine learning algorithm for training</p>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="card algorithm-card" data-algorithm="random_forest">
+                  <div class="card-body text-center">
+                    <i class="bi bi-diagram-3 algorithm-icon text-primary"></i>
+                    <h5>Random Forest</h5>
+                    <p class="small text-muted">Ensemble learning method, great for classification</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card algorithm-card" data-algorithm="logistic_regression">
+                  <div class="card-body text-center">
+                    <i class="bi bi-bezier2 algorithm-icon text-warning"></i>
+                    <h5>Logistic Regression</h5>
+                    <p class="small text-muted">Fast and interpretable classification</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card algorithm-card" data-algorithm="svm">
+                  <div class="card-body text-center">
+                    <i class="bi bi-box algorithm-icon text-info"></i>
+                    <h5>Support Vector Machine</h5>
+                    <p class="small text-muted">Effective for high-dimensional spaces</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card algorithm-card" data-algorithm="neural_network">
+                  <div class="card-body text-center">
+                    <i class="bi bi-grid-3x3 algorithm-icon text-success"></i>
+                    <h5>Neural Network</h5>
+                    <p class="small text-muted">Deep learning approach</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card algorithm-card" data-algorithm="gradient_boosting">
+                  <div class="card-body text-center">
+                    <i class="bi bi-diagram-2 algorithm-icon text-danger"></i>
+                    <h5>Gradient Boosting</h5>
+                    <p class="small text-muted">Powerful ensemble technique</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="card algorithm-card" data-algorithm="decision_tree">
+                  <div class="card-body text-center">
+                    <i class="bi bi-share algorithm-icon text-secondary"></i>
+                    <h5>Decision Tree</h5>
+                    <p class="small text-muted">Simple and interpretable</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Hidden field for algorithm -->
+            <input type="hidden" name="algorithm" id="algorithmInput" required>
+            <div class="text-end mt-4">
+              <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(2)" id="step1Next" disabled>
+                Next <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Target Variable Selection -->
+      <div class="training-step d-none" id="step2">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-bullseye"></i> Step 2: Select Target Variable</h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted mb-4">Choose the column you want to predict</p>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Available Columns:</label>
+              <div id="columnSelection">
+                {% for column in columns %}
+                <span class="column-tag" data-column="{{ column }}">{{ column }}</span>
+                {% endfor %}
+              </div>
+            </div>
+            <!-- Hidden field for target variable -->
+            <input type="hidden" name="target_variable" id="targetVariableInput" required>
+            <div class="d-flex justify-content-between mt-4">
+              <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
+                <i class="bi bi-arrow-left"></i> Previous
+              </button>
+              <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(3)" id="step2Next" disabled>
+                Next <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Configuration -->
+      <div class="training-step d-none" id="step3">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-sliders"></i> Step 3: Training Configuration</h5>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="id_name" class="form-label fw-semibold">Model Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                  <div class="text-danger small">{{ form.name.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                <label for="id_test_size" class="form-label fw-semibold">Test Size</label>
+                {{ form.test_size }}
+                {% if form.test_size.errors %}
+                  <div class="text-danger small">{{ form.test_size.errors }}</div>
+                {% endif %}
+                <div class="form-text">Proportion of data to use for testing (0.1 - 0.5)</div>
+              </div>
+              <div class="col-md-6">
+                <label for="id_random_state" class="form-label fw-semibold">Random State</label>
+                {{ form.random_state }}
+                {% if form.random_state.errors %}
+                  <div class="text-danger small">{{ form.random_state.errors }}</div>
+                {% endif %}
+                <div class="form-text">Random seed for reproducibility</div>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+              <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                <i class="bi bi-arrow-left"></i> Previous
+              </button>
+              <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(4)">
+                Next <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Review & Train -->
+      <div class="training-step d-none" id="step4">
+        <div class="card">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="bi bi-check-circle"></i> Step 4: Review & Start Training</h5>
+          </div>
+          <div class="card-body">
+            <h5 class="mb-3">Training Summary</h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="text-muted">Dataset</h6>
+                    <p class="mb-0"><strong>{{ dataset.original_name }}</strong></p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="text-muted">Algorithm</h6>
+                    <p class="mb-0"><strong id="reviewAlgorithm">-</strong></p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="text-muted">Target Variable</h6>
+                    <p class="mb-0"><strong id="reviewTarget">-</strong></p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="text-muted">Test Size</h6>
+                    <p class="mb-0"><strong id="reviewTestSize">20%</strong></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="alert alert-info mt-4">
+              <i class="bi bi-info-circle"></i> 
+              <strong>Note:</strong> Training may take a few moments depending on dataset size and algorithm complexity.
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+              <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
+                <i class="bi bi-arrow-left"></i> Previous
+              </button>
+              <button type="submit" class="btn btn-success btn-lg" id="trainButton">
+                <i class="bi bi-play-circle"></i> Start Training
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden dataset field -->
+      <input type="hidden" name="dataset" value="{{ dataset.pk }}">
+    </form>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let currentStep = 1;
+    let selectedAlgorithm = '';
+    let selectedTarget = '';
+
+    // Algorithm selection
+    document.querySelectorAll('.algorithm-card').forEach(card => {
+      card.addEventListener('click', function() {
+        document.querySelectorAll('.algorithm-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedAlgorithm = this.dataset.algorithm;
+        document.getElementById('algorithmInput').value = selectedAlgorithm;
+        document.getElementById('step1Next').disabled = false;
+      });
+    });
+
+    // Target variable selection
+    document.querySelectorAll('.column-tag').forEach(tag => {
+      tag.addEventListener('click', function() {
+        document.querySelectorAll('.column-tag').forEach(t => t.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedTarget = this.dataset.column;
+        document.getElementById('targetVariableInput').value = selectedTarget;
+        document.getElementById('step2Next').disabled = false;
+      });
+    });
+
+    function nextStep(step) {
+      // Hide current step
+      document.getElementById(`step${currentStep}`).classList.add('d-none');
+      document.getElementById(`step${currentStep}Indicator`).classList.remove('active');
+      document.getElementById(`step${currentStep}Indicator`).classList.add('completed');
+      
+      // Show next step
+      currentStep = step;
+      document.getElementById(`step${currentStep}`).classList.remove('d-none');
+      document.getElementById(`step${currentStep}Indicator`).classList.add('active');
+      
+      // Update review section if on step 4
+      if (step === 4) {
+        updateReview();
+      }
+      
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+
+    function prevStep(step) {
+      // Hide current step
+      document.getElementById(`step${currentStep}`).classList.add('d-none');
+      document.getElementById(`step${currentStep}Indicator`).classList.remove('active');
+      
+      // Show previous step
+      currentStep = step;
+      document.getElementById(`step${currentStep}`).classList.remove('d-none');
+      document.getElementById(`step${currentStep}Indicator`).classList.add('active');
+      document.getElementById(`step${step}Indicator`).classList.remove('completed');
+      
+      // Scroll to top
+      window.scrollTo(0, 0);
+    }
+
+    function updateReview() {
+      // Update algorithm name
+      const algorithmNames = {
+        'random_forest': 'Random Forest',
+        'logistic_regression': 'Logistic Regression',
+        'svm': 'Support Vector Machine',
+        'neural_network': 'Neural Network',
+        'gradient_boosting': 'Gradient Boosting',
+        'decision_tree': 'Decision Tree'
+      };
+      document.getElementById('reviewAlgorithm').textContent = algorithmNames[selectedAlgorithm] || selectedAlgorithm;
+      
+      // Update target variable
+      document.getElementById('reviewTarget').textContent = selectedTarget;
+      
+      // Update test size
+      const testSize = document.getElementById('id_test_size').value;
+      document.getElementById('reviewTestSize').textContent = (testSize * 100) + '%';
+    }
+
+    // Form submission
+    document.getElementById('trainingForm').addEventListener('submit', function(e) {
+      const button = document.getElementById('trainButton');
+      button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Training...';
+      button.disabled = true;
+    });
+  </script>
+</body>
+</html>

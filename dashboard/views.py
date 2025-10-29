@@ -1,46 +1,47 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth import login, logout
-from django.conf import settings
 from django.contrib import messages
-from core.models import UploadedFile
-from .forms import *
+from core.models import UploadedFile, AIModel, PerformanceMetric, Figure
+from .forms import FileUploadForm, ModelTrainingForm
+from .ml_utils import ModelTrainer
 import pandas as pd
 import os
+import json
+from django.conf import settings
 
-# from .models import models from models dir
 
-# Authentication Views
-def signup_view(request):
+@login_required
+def upload_file(request):
+    """Dedicated file upload page"""
+    recent_files = UploadedFile.objects.filter(user=request.user).order_by('-uploaded_at')[:5]
+    
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            # Add a user to database here
-            return redirect('dashboard')
+            uploaded_file = form.save(commit=False)
+            uploaded_file.user = request.user
+            uploaded_file.original_name = request.FILES['file'].name
+            uploaded_file.save()
+            
+            # Process the file to validate it
+            try:
+                process_uploaded_file(uploaded_file)
+                messages.success(request, f'File "{uploaded_file.original_name}" uploaded successfully!')
+                return redirect('file_detail', pk=uploaded_file.pk)
+            except Exception as e:
+                uploaded_file.delete()
+                messages.error(request, f'Error processing file: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
-        form = UserCreationForm()
-    # Registration is a directory separate from the main application html templates
-    return render(request, 'registration/signup.html', {'form': form})
+        form = FileUploadForm()
+    
+    context = {
+        'form': form,
+        'recent_files': recent_files,
+    }
+    return render(request, 'application/upload_file.html', context)
 
-def login_view(request):
-    if request.method == 'POST':
-        form = AuthenticationForm(data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            return redirect('dashboard')
-    else:
-        form = AuthenticationForm()
-    return render(request, 'registration/login.html', {'form': form})
-
-def logout_view(request):
-    logout(request)
-    return redirect('login')
-
-# Main Application Views
 
 @login_required
 def dashboard(request):
@@ -79,42 +80,6 @@ def dashboard(request):
         'trained_models': trained_models,
     }
     return render(request, 'application/dashboard.html', context)
-
-# @login_required is a django authentication library feature, 
-# all views will use @login_required decorator
-
-@login_required
-def upload_file(request):
-    """Handle file upload and initial processing"""
-    if request.method == 'POST':
-        form = FileUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded_file = form.save(commit=False)
-            uploaded_file.user = request.user
-            uploaded_file.original_name = request.FILES['file'].name
-            uploaded_file.save()
-            
-            # Process the file to validate it
-            try:
-                process_uploaded_file(uploaded_file)
-                messages.success(request, f'File "{uploaded_file.original_name}" uploaded successfully!')
-                return redirect('file_list')
-            except Exception as e:
-                uploaded_file.delete()  # Remove file if processing fails
-                messages.error(request, f'Error processing file: {str(e)}')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = FileUploadForm()
-    
-    return render(request, 'application/upload_file.html', {'form': form})
-
-
-@login_required
-def file_list(request):
-    """Display all uploaded files for the current user"""
-    files = UploadedFile.objects.filter(user=request.user).order_by('-uploaded_at')
-    return render(request, 'dashboard/file_list.html', {'files': files})
 
 
 @login_required
@@ -205,3 +170,174 @@ def load_dataframe(uploaded_file):
         return pd.read_json(file_path)
     else:
         raise ValueError(f"Unsupported file format: {ext}")
+    
+@login_required
+def train_model(request, dataset_id):
+    """Train a new model on a dataset"""
+    dataset = get_object_or_404(UploadedFile, pk=dataset_id, user=request.user)
+    
+    if not dataset.processed:
+        messages.error(request, 'Dataset is not yet processed. Please wait.')
+        return redirect('file_detail', pk=dataset_id)
+    
+    # Get dataset columns for target selection
+    try:
+        df = load_dataframe(dataset)
+        columns = df.columns.tolist()
+    except Exception as e:
+        messages.error(request, f'Error loading dataset: {str(e)}')
+        return redirect('file_detail', pk=dataset_id)
+    
+    if request.method == 'POST':
+        form = ModelTrainingForm(request.user, request.POST)
+        if form.is_valid():
+            # Create model record
+            model = form.save(commit=False)
+            model.user = request.user
+            model.dataset = dataset
+            model.framework = 'scikit-learn'
+            model.status = 'training'
+            
+            # Store training parameters
+            model.parameters = {
+                'algorithm': form.cleaned_data['algorithm'],
+                'test_size': form.cleaned_data['test_size'],
+                'random_state': form.cleaned_data['random_state'],
+            }
+            model.save()
+            
+            # Start training (in production, use Celery for async)
+            try:
+                # Initialize trainer
+                trainer = ModelTrainer(
+                    dataset_path=dataset.file.path,
+                    target_column=model.target_variable,
+                    algorithm=form.cleaned_data['algorithm'],
+                    test_size=form.cleaned_data['test_size'],
+                    random_state=form.cleaned_data['random_state'],
+                )
+                
+                # Load and preprocess data
+                trainer.load_and_preprocess_data()
+                
+                # Train model
+                trainer.train_model()
+                
+                # Evaluate model
+                metrics, cm, predictions = trainer.evaluate_model()
+                
+                # Save metrics
+                PerformanceMetric.objects.create(
+                    model=model,
+                    accuracy=metrics['accuracy'],
+                    precision=metrics['precision'],
+                    recall=metrics['recall'],
+                    f1_score=metrics['f1_score'],
+                )
+                
+                # Save model file
+                model_filename = f"model_{model.id}_{form.cleaned_data['algorithm']}.joblib"
+                model_path = os.path.join(settings.MEDIA_ROOT, 'trained_models', model_filename)
+                os.makedirs(os.path.dirname(model_path), exist_ok=True)
+                
+                trainer.save_model(model_path)
+                model.model_file = f'trained_models/{model_filename}'
+                
+                # Generate and save confusion matrix
+                cm_plot = trainer.generate_confusion_matrix_plot()
+                if cm_plot:
+                    figure = Figure.objects.create(
+                        model=model,
+                        description='Confusion Matrix'
+                    )
+                    figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+                
+                # Generate and save feature importance (if applicable)
+                fi_plot = trainer.generate_feature_importance_plot()
+                if fi_plot:
+                    figure = Figure.objects.create(
+                        model=model,
+                        description='Feature Importance'
+                    )
+                    figure.figure_file.save(f'feature_importance_{model.id}.png', fi_plot)
+                
+                # Update model status
+                model.status = 'completed'
+                model.save()
+                
+                messages.success(request, f'Model "{model.name}" trained successfully with {metrics["accuracy"]:.2f}% accuracy!')
+                return redirect('model_detail', pk=model.id)
+                
+            except Exception as e:
+                model.status = 'failed'
+                model.save()
+                messages.error(request, f'Training failed: {str(e)}')
+                return redirect('train_model', dataset_id=dataset_id)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ModelTrainingForm(user=request.user, initial={'dataset': dataset})
+    
+    context = {
+        'form': form,
+        'dataset': dataset,
+        'columns': columns,
+    }
+    return render(request, 'application/train_model.html', context)
+
+@login_required
+def model_detail(request, pk):
+    """Display model details and metrics"""
+    model = get_object_or_404(AIModel, pk=pk, user=request.user)
+    metrics = model.metrics.first()
+    figures = model.figures.all()
+    
+    context = {
+        'model': model,
+        'metrics': metrics,
+        'figures': figures,
+    }
+    return render(request, 'application/model_detail.html', context)
+
+@login_required
+def model_list(request):
+    """List all models for the current user"""
+    models = AIModel.objects.filter(user=request.user).prefetch_related('metrics').order_by('-created_at')
+    
+    # Add latest metric to each model
+    for model in models:
+        model.latest_metric = model.metrics.first()
+    
+    context = {
+        'models': models,
+    }
+    return render(request, 'application/model_list.html', context)
+
+# Authentication Views
+def signup_view(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            # Add a user to database here
+            return redirect('dashboard')
+    else:
+        form = UserCreationForm()
+    # Registration is a directory separate from the main application html templates
+    return render(request, 'registration/signup.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect('dashboard')
+    else:
+        form = AuthenticationForm()
+    return render(request, 'registration/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
