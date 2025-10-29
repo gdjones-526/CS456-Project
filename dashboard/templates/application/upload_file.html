@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Dataset - ML Platform</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .upload-container {
+      max-width: 700px;
+      width: 100%;
+      padding: 2rem;
+    }
+    
+    .card {
+      border: none;
+      border-radius: 1rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 1rem 1rem 0 0 !important;
+      padding: 2rem;
+      border: none;
+    }
+    
+    .upload-zone {
+      border: 3px dashed #dee2e6;
+      border-radius: 0.5rem;
+      padding: 3rem 2rem;
+      text-align: center;
+      background-color: #f8f9fa;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .upload-zone:hover {
+      border-color: #667eea;
+      background-color: #f0f2ff;
+    }
+    
+    .upload-zone.dragover {
+      border-color: #667eea;
+      background-color: #e8ebff;
+      transform: scale(1.02);
+    }
+    
+    .upload-icon {
+      font-size: 4rem;
+      color: #667eea;
+      margin-bottom: 1rem;
+    }
+    
+    .file-input {
+      display: none;
+    }
+    
+    .file-name-display {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background-color: #e7f3ff;
+      border-radius: 0.5rem;
+      display: none;
+    }
+    
+    .file-name-display.show {
+      display: block;
+    }
+    
+    .btn-upload {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      padding: 0.75rem 2rem;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+    
+    .btn-upload:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .file-requirements {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 1rem;
+      border-radius: 0.375rem;
+    }
+    
+    .supported-formats {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    
+    .format-badge {
+      background-color: #e9ecef;
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="upload-container">
+    <!-- Back Button -->
+    <div class="mb-3">
+      <a href="{% url 'dashboard' %}" class="btn btn-light">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+
+    <!-- Django Messages -->
+    {% if messages %}
+    <div class="mb-4">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Upload Card -->
+    <div class="card">
+      <div class="card-header text-center">
+        <h2 class="mb-2"><i class="bi bi-cloud-upload"></i> Upload Dataset</h2>
+        <p class="mb-0 opacity-75">Upload your machine learning dataset to get started</p>
+      </div>
+      <div class="card-body p-4">
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+          {% csrf_token %}
+          
+          <!-- Upload Zone -->
+          <div class="upload-zone" id="uploadZone">
+            <i class="bi bi-cloud-arrow-up upload-icon"></i>
+            <h5>Drag & Drop your file here</h5>
+            <p class="text-muted">or click to browse</p>
+            <input type="file" 
+                   name="file" 
+                   id="{{ form.file.id_for_label }}" 
+                   class="file-input"
+                   accept=".csv,.xlsx,.xls,.json"
+                   required>
+            
+            <!-- File Name Display -->
+            <div class="file-name-display" id="fileNameDisplay">
+              <i class="bi bi-file-earmark-check text-success"></i>
+              <strong id="fileName"></strong>
+              <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFile()">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+          
+          {% if form.file.errors %}
+          <div class="alert alert-danger mt-3">
+            {{ form.file.errors }}
+          </div>
+          {% endif %}
+
+          <!-- Supported Formats -->
+          <div class="supported-formats mt-3">
+            <span class="format-badge"><i class="bi bi-file-earmark-spreadsheet"></i> CSV</span>
+            <span class="format-badge"><i class="bi bi-file-earmark-excel"></i> Excel (.xlsx, .xls)</span>
+            <span class="format-badge"><i class="bi bi-file-earmark-code"></i> JSON</span>
+          </div>
+
+          <!-- Description Field -->
+          <div class="mt-4">
+            <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold">
+              <i class="bi bi-card-text"></i> Description (Optional)
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+            <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+            {% endif %}
+            <div class="form-text">Provide a brief description of your dataset</div>
+          </div>
+
+          <!-- File Requirements -->
+          <div class="file-requirements mt-4">
+            <h6 class="mb-2"><i class="bi bi-info-circle"></i> File Requirements</h6>
+            <ul class="small mb-0">
+              <li>Maximum file size: <strong>50 MB</strong></li>
+              <li>Supported formats: CSV, Excel (.xlsx, .xls), JSON</li>
+              <li>Data should have proper column headers</li>
+              <li>Avoid missing or corrupted data for best results</li>
+            </ul>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="d-grid gap-2 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg btn-upload" id="submitBtn" disabled>
+              <i class="bi bi-upload"></i> Upload Dataset
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Recent Uploads -->
+    {% if recent_files %}
+    <div class="card mt-4">
+      <div class="card-body">
+        <h6 class="card-title mb-3"><i class="bi bi-clock-history"></i> Recent Uploads</h6>
+        <div class="list-group">
+          {% for file in recent_files %}
+          <a href="{% url 'file_detail' file.pk %}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+              <div>
+                <i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>
+                <strong>{{ file.original_name }}</strong>
+              </div>
+              <small class="text-muted">{{ file.uploaded_at|timesince }} ago</small>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('{{ form.file.id_for_label }}');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const fileName = document.getElementById('fileName');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Click to upload
+    uploadZone.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON') {
+        fileInput.click();
+      }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+      handleFile(e.target.files[0]);
+    });
+
+    // Drag and drop
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      
+      const file = e.dataTransfer.files[0];
+      fileInput.files = e.dataTransfer.files;
+      handleFile(file);
+    });
+
+    function handleFile(file) {
+      if (file) {
+        // Check file type
+        const validExtensions = ['.csv', '.xlsx', '.xls', '.json'];
+        const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        
+        if (!validExtensions.includes(fileExtension)) {
+          alert('Invalid file type. Please upload CSV, Excel, or JSON files only.');
+          clearFile();
+          return;
+        }
+
+        // Check file size (50MB)
+        if (file.size > 50 * 1024 * 1024) {
+          alert('File size exceeds 50MB limit.');
+          clearFile();
+          return;
+        }
+
+        fileName.textContent = file.name;
+        fileNameDisplay.classList.add('show');
+        submitBtn.disabled = false;
+      }
+    }
+
+    function clearFile() {
+      fileInput.value = '';
+      fileNameDisplay.classList.remove('show');
+      submitBtn.disabled = true;
+    }
+
+    // Form submission
+    document.getElementById('uploadForm').addEventListener('submit', (e) => {
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+      submitBtn.disabled = true;
+    });
+
+    // Auto-dismiss alerts
+    setTimeout(() => {
+      const alerts = document.querySelectorAll('.alert');
+      alerts.forEach(alert => {
+        const bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+      });
+    }, 5000);
+  </script>
+</body>
+</html>

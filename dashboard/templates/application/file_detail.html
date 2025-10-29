@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ file.original_name }} - ML Platform</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: #f8f9fa;
+    }
+    
+    .navbar-custom {
+      background-color: #212529;
+      box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    }
+    
+    .main-container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .card {
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .stat-card {
+      text-align: center;
+      padding: 1.5rem;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #0d6efd;
+    }
+    
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .table-preview {
+      overflow-x: auto;
+      max-height: 500px;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+    }
+    
+    .column-badge {
+      display: inline-block;
+      margin: 0.25rem;
+      padding: 0.5rem 0.75rem;
+      background-color: #e9ecef;
+      border-radius: 0.375rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+    
+    .action-button {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark navbar-custom">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{% url 'dashboard' %}">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+      </a>
+      <span class="navbar-text text-white">
+        <i class="bi bi-person-circle"></i> {{ user.username }}
+      </span>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Django Messages -->
+    {% if messages %}
+    <div class="mb-4">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- File Header -->
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h2 class="mb-2">
+              <i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>
+              {{ file.original_name }}
+            </h2>
+            <p class="text-muted mb-3">
+              {% if file.description %}
+                {{ file.description }}
+              {% else %}
+                <em>No description provided</em>
+              {% endif %}
+            </p>
+            <div class="mb-2">
+              <span class="badge bg-{% if file.processed %}success{% else %}warning{% endif %} me-2">
+                {% if file.processed %}
+                  <i class="bi bi-check-circle"></i> Processed
+                {% else %}
+                  <i class="bi bi-hourglass-split"></i> Processing
+                {% endif %}
+              </span>
+              <span class="text-muted small">
+                <i class="bi bi-calendar3"></i> Uploaded {{ file.uploaded_at|date:"M d, Y H:i" }}
+              </span>
+            </div>
+          </div>
+          <div class="text-end">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary action-button">
+              <i class="bi bi-house"></i> Dashboard
+            </a>
+            <button type="button" class="btn btn-outline-danger action-button" data-bs-toggle="modal" data-bs-target="#deleteModal">
+              <i class="bi bi-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Statistics -->
+    {% if file_info %}
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="card stat-card">
+          <div class="stat-value">{{ file_info.rows|default:"0" }}</div>
+          <div class="stat-label">Total Rows</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card stat-card">
+          <div class="stat-value">{{ file_info.columns|default:"0" }}</div>
+          <div class="stat-label">Columns</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card stat-card">
+          <div class="stat-value">{{ file_info.size|default:"0 KB" }}</div>
+          <div class="stat-label">File Size</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card stat-card">
+          <div class="stat-value {% if file_info.missing_values > 0 %}text-warning{% endif %}">
+            {{ file_info.missing_values|default:"0" }}
+          </div>
+          <div class="stat-label">Missing Values</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Column Information -->
+    {% if columns %}
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-list-columns-reverse"></i> Columns ({{ columns|length }})</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Available columns in this dataset:</p>
+        <div>
+          {% for column in columns %}
+            <span class="column-badge">{{ column }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Data Preview -->
+    {% if preview_data %}
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Data Preview (First 10 Rows)</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-preview">
+          {{ preview_data|safe }}
+        </div>
+      </div>
+      <div class="card-footer text-muted">
+        <i class="bi bi-info-circle"></i> Showing first 10 rows of {{ file_info.rows }} total rows
+      </div>
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body">
+        <div class="alert alert-warning mb-0">
+          <i class="bi bi-exclamation-triangle"></i> Unable to load data preview. Please check if the file is valid.
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3"><i class="bi bi-gear"></i> Actions</h5>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-primary" disabled>
+            <i class="bi bi-robot"></i> Train Model (Coming Soon)
+          </button>
+          <button class="btn btn-outline-primary" disabled>
+            <i class="bi bi-download"></i> Download Processed Data
+          </button>
+          <button class="btn btn-outline-secondary" disabled>
+            <i class="bi bi-pencil"></i> Edit Description
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Models Using This Dataset -->
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-cpu"></i> Models Using This Dataset</h5>
+      </div>
+      <div class="card-body">
+        {% if file.models.all %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Model Name</th>
+                <th>Framework</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for model in file.models.all %}
+              <tr>
+                <td><strong>{{ model.name }}</strong></td>
+                <td>{{ model.framework }}</td>
+                <td>
+                  <span class="badge bg-{% if model.status == 'completed' %}success{% elif model.status == 'training' %}warning{% else %}danger{% endif %}">
+                    {{ model.get_status_display }}
+                  </span>
+                </td>
+                <td class="text-muted small">{{ model.created_at|date:"M d, Y" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+          <i class="bi bi-info-circle"></i> No models have been trained using this dataset yet.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirm Delete</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete <strong>{{ file.original_name }}</strong>?</p>
+          <p class="text-danger small mb-0">
+            <i class="bi bi-exclamation-triangle"></i> This action cannot be undone. All models trained on this dataset will lose their reference to it.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form method="post" action="{% url 'delete_file' file.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+              <i class="bi bi-trash"></i> Delete File
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Auto-dismiss alerts after 5 seconds
+    setTimeout(() => {
+      const alerts = document.querySelectorAll('.alert');
+      alerts.forEach(alert => {
+        const bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+      });
+    }, 5000);
+  </script>
+</body>
+</html>
