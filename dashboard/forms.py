@@ -1,6 +1,7 @@
 from django import forms
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.models import User
 from core.models import UploadedFile, AIModel, Experiment
-
 
 class FileUploadForm(forms.ModelForm):
     class Meta:
@@ -39,14 +40,17 @@ class FileUploadForm(forms.ModelForm):
 
 
 class ModelTrainingForm(forms.ModelForm):
+
+    ALGORITHM_CHOICES = [
+        ('random_forest', 'Random Forest'),
+        ('logistic_regression', 'Logistic Regression'),
+        ('svm', 'Support Vector Machine'),
+        ('neural_network', 'Neural Network'),
+        ('gradient_boosting', 'Gradient Boosting'),
+    ]
+
     algorithm = forms.ChoiceField(
-        choices=[
-            ('random_forest', 'Random Forest'),
-            ('logistic_regression', 'Logistic Regression'),
-            ('svm', 'Support Vector Machine'),
-            ('neural_network', 'Neural Network'),
-            ('gradient_boosting', 'Gradient Boosting'),
-        ],
+        choices=ALGORITHM_CHOICES,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     
@@ -86,7 +90,7 @@ class ModelTrainingForm(forms.ModelForm):
             })
         }
 
-    def __init__(self, user=None, *args, **kwargs):
+    def __init__(self, user=None, algorithm=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if user:
             # Only show datasets belonging to this user
@@ -94,7 +98,9 @@ class ModelTrainingForm(forms.ModelForm):
                 user=user, 
                 processed=True
             )
-
+        if algorithm and not self.is_bound:  # <-- check that form isn't bound
+            if algorithm in dict(self.ALGORITHM_CHOICES):
+                self.fields['algorithm'].initial = algorithm
 
 class ExperimentForm(forms.ModelForm):
     class Meta:
