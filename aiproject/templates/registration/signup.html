@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+  <div class="col-md-6 col-lg-5 col-xl-4">
+    
+    <div class="card shadow-sm border-0" style="border-radius: 1rem;">
+      <div class="card-body p-4 p-md-5">
+        <h3 class="card-title text-center mb-4 text-dark">
+          <i class="bi bi-person-plus me-2"></i>
+          Create Account
+        </h3>
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}
+              {{ error }}
+            {% endfor %}
+          </div>
+        {% endif %}
+        
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold">
+              {{ form.username.label|default:"Username" }}
+            </label>
+            {{ form.username }}
+            {% if form.username.errors %}
+              <div class="text-danger small mt-1">{{ form.username.errors }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="mb-3">
+            <label for="{{ form.password1.id_for_label }}" class="form-label fw-semibold">
+              {{ form.password1.label|default:"Password" }}
+            </label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}
+              <div class="text-danger small mt-1">{{ form.password1.errors }}</div>
+            {% else %}
+              <div class="form-text small">
+                Your password must contain at least 8 characters.
+              </div>
+            {% endif %}
+          </div>
+          
+          <div class="mb-3">
+            <label for="{{ form.password2.id_for_label }}" class="form-label fw-semibold">
+              {{ form.password2.label|default:"Confirm Password" }}
+            </label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}
+              <div class="text-danger small mt-1">{{ form.password2.errors }}</div>
+            {% endif %}
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 btn-lg mt-2">
+            Sign Up
+          </button>
+        </form>
+
+        <hr class="my-4">
+
+        <div class="text-center">
+          <p class="mb-0">Already have an account?</p>
+          <a href="{% url 'login' %}" class="fw-semibold">Login</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

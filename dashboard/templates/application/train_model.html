@@ -275,7 +275,8 @@
               </div>
             </div>
             <!-- Hidden field for algorithm -->
-            <input type="hidden" name="algorithm" id="algorithmInput" required>
+            <input type="hidden" name="algorithm" id="algorithmInput" value="{{ form.initial.algorithm|default:'' }}">
+            <input type="hidden" name="target_variable" id="targetVariableInput" value="{{ form.initial.target_variable|default:'' }}">
             <div class="text-end mt-4">
               <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(2)" id="step1Next" disabled>
                 Next <i class="bi bi-arrow-right"></i>
@@ -421,7 +422,8 @@
       </div>
 
       <!-- Hidden dataset field -->
-      <input type="hidden" name="dataset" value="{{ dataset.pk }}">
+      <input type="hidden" name="algorithm" id="algorithmInput" required>
+      <input type="hidden" name="target_variable" id="targetVariableInput" required>
     </form>
   </div>
 
@@ -513,6 +515,18 @@
       const button = document.getElementById('trainButton');
       button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Training...';
       button.disabled = true;
+    });
+
+    window.addEventListener('DOMContentLoaded', (event) => {
+    const initialAlgorithm = document.getElementById('algorithmInput').value;
+    if (initialAlgorithm) {
+        const card = document.querySelector(`.algorithm-card[data-algorithm="${initialAlgorithm}"]`);
+        if (card) {
+            card.classList.add('selected');
+            selectedAlgorithm = initialAlgorithm;
+            document.getElementById('step1Next').disabled = false;
+        }
+      }
     });
   </script>
 </body>

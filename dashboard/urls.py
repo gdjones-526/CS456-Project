@@ -18,6 +18,7 @@ urlpatterns = [
     path('files/<int:pk>/delete/', views.delete_file, name='delete_file'),
 
     # Model training
+    path('train/<int:dataset_id>/<str:algorithm>/', views.train_model, name='train_model_with_algorithm'),
     path('train/<int:dataset_id>/', views.train_model, name='train_model'),
     path('models/', views.model_list, name='model_list'),
     path('models/<int:pk>/', views.model_detail, name='model_detail'),
