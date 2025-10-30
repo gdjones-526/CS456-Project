@@ -278,74 +278,94 @@
       <h4 class="text-primary mb-3"><i class="bi bi-cpu"></i> Model Coverage & Implementation</h4>
       <div class="card shadow-sm p-4">
         <p class="text-muted">Select and configure models for training.</p>
-        
+
         {% if not files or not files|length %}
-        <div class="alert alert-warning">
-          <i class="bi bi-exclamation-triangle"></i> Please upload a dataset first before training models.
-        </div>
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> Please upload a dataset first before training models.
+          </div>
         {% else %}
-        <div class="row row-cols-1 row-cols-md-3 g-3">
-          <div class="col">
-            <div class="card h-100 text-center shadow-sm model-card">
-              <div class="card-body">
-                <i class="bi bi-diagram-3 fs-1 text-primary"></i>
-                <h5 class="card-title mt-3">Random Forest</h5>
-                <p class="small text-muted">Ensemble learning method</p>
-                <button class="btn btn-outline-primary btn-sm mt-2">Configure</button>
+          {% for file in files %}
+            <h6 class="mt-3 mb-2 text-secondary"><i class="bi bi-file-earmark-spreadsheet"></i> {{ file.original_name }}</h6>
+            <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
+              <!-- Random Forest -->
+              <div class="col">
+                <div class="card h-100 text-center shadow-sm model-card">
+                  <div class="card-body">
+                    <i class="bi bi-diagram-3 fs-1 text-primary"></i>
+                    <h5 class="card-title mt-3">Random Forest</h5>
+                    <p class="small text-muted">Ensemble learning method</p>
+                    <a href="{% url 'train_model_with_algorithm' dataset_id=file.id algorithm='random_forest' %}" 
+                      class="btn btn-outline-primary btn-sm mt-2">Configure</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Neural Network -->
+              <div class="col">
+                <div class="card h-100 text-center shadow-sm model-card">
+                  <div class="card-body">
+                    <i class="bi bi-grid-3x3 fs-1 text-success"></i>
+                    <h5 class="card-title mt-3">Neural Network</h5>
+                    <p class="small text-muted">Deep learning model</p>
+                    <a href="{% url 'train_model_with_algorithm' dataset_id=file.id algorithm='neural_network' %}" 
+                      class="btn btn-outline-success btn-sm mt-2">Configure</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SVM -->
+              <div class="col">
+                <div class="card h-100 text-center shadow-sm model-card">
+                  <div class="card-body">
+                    <i class="bi bi-box fs-1 text-info"></i>
+                    <h5 class="card-title mt-3">SVM</h5>
+                    <p class="small text-muted">Support Vector Machine</p>
+                    <a href="{% url 'train_model_with_algorithm' dataset_id=file.id algorithm='svm' %}" 
+                      class="btn btn-outline-info btn-sm mt-2">Configure</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Logistic Regression -->
+              <div class="col">
+                <div class="card h-100 text-center shadow-sm model-card">
+                  <div class="card-body">
+                    <i class="bi bi-bezier2 fs-1 text-warning"></i>
+                    <h5 class="card-title mt-3">Logistic Regression</h5>
+                    <p class="small text-muted">Classification algorithm</p>
+                    <a href="{% url 'train_model_with_algorithm' dataset_id=file.id algorithm='logistic_regression' %}" 
+                      class="btn btn-outline-warning btn-sm mt-2">Configure</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- XGBoost -->
+              <div class="col">
+                <div class="card h-100 text-center shadow-sm model-card">
+                  <div class="card-body">
+                    <i class="bi bi-diagram-2 fs-1 text-danger"></i>
+                    <h5 class="card-title mt-3">XGBoost</h5>
+                    <p class="small text-muted">Gradient boosting</p>
+                    <a href="{% url 'train_model_with_algorithm' dataset_id=file.id algorithm='gradient_boosting' %}" 
+                      class="btn btn-outline-danger btn-sm mt-2">Configure</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Decision Tree -->
+              <div class="col">
+                <div class="card h-100 text-center shadow-sm model-card">
+                  <div class="card-body">
+                    <i class="bi bi-share fs-1 text-secondary"></i>
+                    <h5 class="card-title mt-3">Decision Tree</h5>
+                    <p class="small text-muted">Tree-based model</p>
+                    <a href="{% url 'train_model_with_algorithm' dataset_id=file.id algorithm='decision_tree' %}" 
+                      class="btn btn-outline-secondary btn-sm mt-2">Configure</a>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="col">
-            <div class="card h-100 text-center shadow-sm model-card">
-              <div class="card-body">
-                <i class="bi bi-grid-3x3 fs-1 text-success"></i>
-                <h5 class="card-title mt-3">Neural Network</h5>
-                <p class="small text-muted">Deep learning model</p>
-                <button class="btn btn-outline-success btn-sm mt-2">Configure</button>
-              </div>
-            </div>
-          </div>
-          <div class="col">
-            <div class="card h-100 text-center shadow-sm model-card">
-              <div class="card-body">
-                <i class="bi bi-box fs-1 text-info"></i>
-                <h5 class="card-title mt-3">SVM</h5>
-                <p class="small text-muted">Support Vector Machine</p>
-                <button class="btn btn-outline-info btn-sm mt-2">Configure</button>
-              </div>
-            </div>
-          </div>
-          <div class="col">
-            <div class="card h-100 text-center shadow-sm model-card">
-              <div class="card-body">
-                <i class="bi bi-bezier2 fs-1 text-warning"></i>
-                <h5 class="card-title mt-3">Logistic Regression</h5>
-                <p class="small text-muted">Classification algorithm</p>
-                <button class="btn btn-outline-warning btn-sm mt-2">Configure</button>
-              </div>
-            </div>
-          </div>
-          <div class="col">
-            <div class="card h-100 text-center shadow-sm model-card">
-              <div class="card-body">
-                <i class="bi bi-diagram-2 fs-1 text-danger"></i>
-                <h5 class="card-title mt-3">XGBoost</h5>
-                <p class="small text-muted">Gradient boosting</p>
-                <button class="btn btn-outline-danger btn-sm mt-2">Configure</button>
-              </div>
-            </div>
-          </div>
-          <div class="col">
-            <div class="card h-100 text-center shadow-sm model-card">
-              <div class="card-body">
-                <i class="bi bi-share fs-1 text-secondary"></i>
-                <h5 class="card-title mt-3">Decision Tree</h5>
-                <p class="small text-muted">Tree-based model</p>
-                <button class="btn btn-outline-secondary btn-sm mt-2">Configure</button>
-              </div>
-            </div>
-          </div>
-        </div>
+          {% endfor %}
         {% endif %}
       </div>
     </section>

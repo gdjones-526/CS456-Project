@@ -4,6 +4,8 @@ from django.contrib import messages
 from core.models import UploadedFile, AIModel, PerformanceMetric, Figure
 from .forms import FileUploadForm, ModelTrainingForm
 from .ml_utils import *
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth import login, logout
 import pandas as pd
 import os
 import json
@@ -207,7 +209,7 @@ def load_dataframe(uploaded_file):
 
 
 @login_required
-def train_model(request, dataset_id):
+def train_model(request, dataset_id, algorithm=None):
     """Train a new model on a dataset"""
     dataset = get_object_or_404(UploadedFile, pk=dataset_id, user=request.user)
     
@@ -224,7 +226,7 @@ def train_model(request, dataset_id):
         return redirect('file_detail', pk=dataset_id)
     
     if request.method == 'POST':
-        form = ModelTrainingForm(request.user, request.POST)
+        form = ModelTrainingForm(user=request.user, data=request.POST)
         if form.is_valid():
             # Create model record
             model = form.save(commit=False)
@@ -313,7 +315,10 @@ def train_model(request, dataset_id):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = ModelTrainingForm(user=request.user, initial={'dataset': dataset})
+        initial_data = {'dataset': dataset}
+        if algorithm:
+            initial_data['algorithm'] = algorithm
+        form = ModelTrainingForm(user=request.user, initial=initial_data)
     
     context = {
         'form': form,
@@ -359,7 +364,6 @@ def signup_view(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            # Add a user to database here
             return redirect('dashboard')
     else:
         form = UserCreationForm()
