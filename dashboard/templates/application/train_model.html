@@ -186,14 +186,14 @@
 
     <!-- Step Indicator -->
     <div class="step-indicator">
-      <div class="step active" id="step1Indicator">
+              <div class="step active" id="step1Indicator">
         <div class="step-number">1</div>
-        <div class="step-label">Algorithm</div>
+        <div class="step-label">Target Variable</div>
         <div class="step-line"></div>
       </div>
       <div class="step" id="step2Indicator">
         <div class="step-number">2</div>
-        <div class="step-label">Target Variable</div>
+        <div class="step-label">Algorithm</div>
         <div class="step-line"></div>
       </div>
       <div class="step" id="step3Indicator">
@@ -210,86 +210,11 @@
     <form method="post" id="trainingForm">
       {% csrf_token %}
       
-      <!-- Step 1: Algorithm Selection -->
+      <!-- Step 1: Target Variable Selection -->
       <div class="training-step" id="step1">
         <div class="card">
           <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="bi bi-cpu"></i> Step 1: Select Algorithm</h5>
-          </div>
-          <div class="card-body">
-            <p class="text-muted mb-4">Choose a machine learning algorithm for training</p>
-            <div class="row g-3">
-              <div class="col-md-4">
-                <div class="card algorithm-card" data-algorithm="random_forest">
-                  <div class="card-body text-center">
-                    <i class="bi bi-diagram-3 algorithm-icon text-primary"></i>
-                    <h5>Random Forest</h5>
-                    <p class="small text-muted">Ensemble learning method, great for classification</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card algorithm-card" data-algorithm="logistic_regression">
-                  <div class="card-body text-center">
-                    <i class="bi bi-bezier2 algorithm-icon text-warning"></i>
-                    <h5>Logistic Regression</h5>
-                    <p class="small text-muted">Fast and interpretable classification</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card algorithm-card" data-algorithm="svm">
-                  <div class="card-body text-center">
-                    <i class="bi bi-box algorithm-icon text-info"></i>
-                    <h5>Support Vector Machine</h5>
-                    <p class="small text-muted">Effective for high-dimensional spaces</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card algorithm-card" data-algorithm="neural_network">
-                  <div class="card-body text-center">
-                    <i class="bi bi-grid-3x3 algorithm-icon text-success"></i>
-                    <h5>Neural Network</h5>
-                    <p class="small text-muted">Deep learning approach</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card algorithm-card" data-algorithm="gradient_boosting">
-                  <div class="card-body text-center">
-                    <i class="bi bi-diagram-2 algorithm-icon text-danger"></i>
-                    <h5>Gradient Boosting</h5>
-                    <p class="small text-muted">Powerful ensemble technique</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card algorithm-card" data-algorithm="decision_tree">
-                  <div class="card-body text-center">
-                    <i class="bi bi-share algorithm-icon text-secondary"></i>
-                    <h5>Decision Tree</h5>
-                    <p class="small text-muted">Simple and interpretable</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- Hidden field for algorithm -->
-            <input type="hidden" name="algorithm" id="algorithmInput" required>
-            <div class="text-end mt-4">
-              <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(2)" id="step1Next" disabled>
-                Next <i class="bi bi-arrow-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Target Variable Selection -->
-      <div class="training-step d-none" id="step2">
-        <div class="card">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="bi bi-bullseye"></i> Step 2: Select Target Variable</h5>
+            <h5 class="mb-0"><i class="bi bi-bullseye"></i> Step 1: Select Target Variable</h5>
           </div>
           <div class="card-body">
             <p class="text-muted mb-4">Choose the column you want to predict</p>
@@ -301,8 +226,40 @@
                 {% endfor %}
               </div>
             </div>
+            <!-- Task type indicator -->
+            <div id="taskTypeIndicator" class="alert alert-info d-none">
+              <i class="bi bi-info-circle"></i>
+              <strong>Detected Task Type:</strong> <span id="taskTypeName"></span>
+              <p class="mb-0 small mt-2" id="taskTypeDescription"></p>
+            </div>
             <!-- Hidden field for target variable -->
             <input type="hidden" name="target_variable" id="targetVariableInput" required>
+            <div class="text-end mt-4">
+              <button type="button" class="btn btn-primary btn-lg" onclick="analyzeTarget()" id="step1Next" disabled>
+                Next <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Algorithm Selection -->
+      <div class="training-step d-none" id="step2">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-cpu"></i> Step 2: Select Algorithm</h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-success mb-4">
+              <strong>Target:</strong> <span id="selectedTargetDisplay"></span> | 
+              <strong>Task:</strong> <span id="taskTypeDisplay"></span>
+            </div>
+            <p class="text-muted mb-4">Choose a machine learning algorithm suitable for your task</p>
+            <div class="row g-3" id="algorithmGrid">
+              <!-- Algorithms will be populated dynamically -->
+            </div>
+            <!-- Hidden field for algorithm -->
+            <input type="hidden" name="algorithm" id="algorithmInput" required>
             <div class="d-flex justify-content-between mt-4">
               <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
                 <i class="bi bi-arrow-left"></i> Previous
@@ -430,17 +387,71 @@
     let currentStep = 1;
     let selectedAlgorithm = '';
     let selectedTarget = '';
+    let taskType = '';
+    
+    // Dataset column information passed from Django
+    const datasetColumns = {{ columns|safe }};
+    const datasetId = {{ dataset.pk }};
 
-    // Algorithm selection
-    document.querySelectorAll('.algorithm-card').forEach(card => {
-      card.addEventListener('click', function() {
-        document.querySelectorAll('.algorithm-card').forEach(c => c.classList.remove('selected'));
-        this.classList.add('selected');
-        selectedAlgorithm = this.dataset.algorithm;
-        document.getElementById('algorithmInput').value = selectedAlgorithm;
-        document.getElementById('step1Next').disabled = false;
-      });
-    });
+    // Algorithm definitions with task type compatibility
+    const algorithms = {
+      'random_forest': {
+        name: 'Random Forest',
+        icon: 'bi-diagram-3',
+        color: 'primary',
+        description: 'Ensemble learning method',
+        tasks: ['classification', 'regression']
+      },
+      'logistic_regression': {
+        name: 'Logistic Regression',
+        icon: 'bi-bezier2',
+        color: 'warning',
+        description: 'Fast and interpretable',
+        tasks: ['classification']
+      },
+      'svm': {
+        name: 'Support Vector Machine',
+        icon: 'bi-box',
+        color: 'info',
+        description: 'Effective for high dimensions',
+        tasks: ['classification', 'regression']
+      },
+      'neural_network': {
+        name: 'Neural Network',
+        icon: 'bi-grid-3x3',
+        color: 'success',
+        description: 'Deep learning approach',
+        tasks: ['classification', 'regression']
+      },
+      'gradient_boosting': {
+        name: 'Gradient Boosting',
+        icon: 'bi-diagram-2',
+        color: 'danger',
+        description: 'Powerful ensemble',
+        tasks: ['classification', 'regression']
+      },
+      'decision_tree': {
+        name: 'Decision Tree',
+        icon: 'bi-share',
+        color: 'secondary',
+        description: 'Simple and interpretable',
+        tasks: ['classification', 'regression']
+      },
+      'linear_regression': {
+        name: 'Linear Regression',
+        icon: 'bi-graph-up',
+        color: 'info',
+        description: 'Simple regression model',
+        tasks: ['regression']
+      },
+      'ridge_regression': {
+        name: 'Ridge Regression',
+        icon: 'bi-graph-up-arrow',
+        color: 'primary',
+        description: 'Regularized regression',
+        tasks: ['regression']
+      }
+    };
 
     // Target variable selection
     document.querySelectorAll('.column-tag').forEach(tag => {
@@ -449,9 +460,96 @@
         this.classList.add('selected');
         selectedTarget = this.dataset.column;
         document.getElementById('targetVariableInput').value = selectedTarget;
-        document.getElementById('step2Next').disabled = false;
+        document.getElementById('step1Next').disabled = false;
       });
     });
+
+    async function analyzeTarget() {
+      if (!selectedTarget) {
+        alert('Please select a target variable');
+        return;
+      }
+
+      // Show loading
+      const btn = document.getElementById('step1Next');
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+      btn.disabled = true;
+
+      try {
+        // Call backend to analyze target column
+        const response = await fetch(`/analyze-target/${datasetId}/${selectedTarget}/`);
+        const data = await response.json();
+        
+        taskType = data.task_type;
+        
+        // Show task type indicator
+        document.getElementById('taskTypeIndicator').classList.remove('d-none');
+        document.getElementById('taskTypeName').textContent = taskType.toUpperCase();
+        
+        if (taskType === 'classification') {
+          document.getElementById('taskTypeDescription').innerHTML = 
+            `Classification task detected. Target has <strong>${data.n_unique}</strong> unique values. 
+            Suitable algorithms: Random Forest, Logistic Regression, SVM, etc.`;
+        } else {
+          document.getElementById('taskTypeDescription').innerHTML = 
+            `Regression task detected. Target is continuous with <strong>${data.n_unique}</strong> unique values. 
+            Suitable algorithms: Random Forest, Linear Regression, Ridge Regression, etc.`;
+        }
+
+        // Populate algorithms for next step
+        populateAlgorithms(taskType);
+        
+        // Move to next step
+        setTimeout(() => {
+          nextStep(2);
+        }, 1000);
+
+      } catch (error) {
+        alert('Error analyzing target variable. Please try again.');
+        btn.innerHTML = 'Next <i class="bi bi-arrow-right"></i>';
+        btn.disabled = false;
+      }
+    }
+
+    function populateAlgorithms(taskType) {
+      const grid = document.getElementById('algorithmGrid');
+      grid.innerHTML = '';
+      
+      // Filter algorithms based on task type
+      const suitableAlgorithms = Object.entries(algorithms).filter(
+        ([key, algo]) => algo.tasks.includes(taskType)
+      );
+
+      suitableAlgorithms.forEach(([key, algo]) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4';
+        col.innerHTML = `
+          <div class="card algorithm-card" data-algorithm="${key}">
+            <div class="card-body text-center">
+              <i class="bi ${algo.icon} algorithm-icon text-${algo.color}"></i>
+              <h5>${algo.name}</h5>
+              <p class="small text-muted">${algo.description}</p>
+            </div>
+          </div>
+        `;
+        grid.appendChild(col);
+      });
+
+      // Add click handlers to new algorithm cards
+      document.querySelectorAll('.algorithm-card').forEach(card => {
+        card.addEventListener('click', function() {
+          document.querySelectorAll('.algorithm-card').forEach(c => c.classList.remove('selected'));
+          this.classList.add('selected');
+          selectedAlgorithm = this.dataset.algorithm;
+          document.getElementById('algorithmInput').value = selectedAlgorithm;
+          document.getElementById('step2Next').disabled = false;
+        });
+      });
+
+      // Update display
+      document.getElementById('selectedTargetDisplay').textContent = selectedTarget;
+      document.getElementById('taskTypeDisplay').textContent = taskType.toUpperCase();
+    }
 
     function nextStep(step) {
       // Hide current step
@@ -490,15 +588,7 @@
 
     function updateReview() {
       // Update algorithm name
-      const algorithmNames = {
-        'random_forest': 'Random Forest',
-        'logistic_regression': 'Logistic Regression',
-        'svm': 'Support Vector Machine',
-        'neural_network': 'Neural Network',
-        'gradient_boosting': 'Gradient Boosting',
-        'decision_tree': 'Decision Tree'
-      };
-      document.getElementById('reviewAlgorithm').textContent = algorithmNames[selectedAlgorithm] || selectedAlgorithm;
+      document.getElementById('reviewAlgorithm').textContent = algorithms[selectedAlgorithm]?.name || selectedAlgorithm;
       
       // Update target variable
       document.getElementById('reviewTarget').textContent = selectedTarget;

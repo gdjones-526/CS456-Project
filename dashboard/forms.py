@@ -14,7 +14,7 @@ class FileUploadForm(forms.ModelForm):
             }),
             'file': forms.FileInput(attrs={
                 'class': 'form-control',
-                'accept': '.csv,.xlsx,.xls,.json'
+                'accept': '.csv,.xlsx,.xls,.json,.txt'
             })
         }
         labels = {
@@ -26,11 +26,11 @@ class FileUploadForm(forms.ModelForm):
         file = self.cleaned_data.get('file')
         if file:
             # Validate file extension
-            valid_extensions = ['.csv', '.xlsx', '.xls', '.json']
+            valid_extensions = ['.csv', '.xlsx', '.xls', '.json', '.txt']
             ext = file.name[file.name.rfind('.'):].lower()
             if ext not in valid_extensions:
                 raise forms.ValidationError(
-                    f'Unsupported file type. Please upload CSV, Excel, or JSON files only.'
+                    f'Unsupported file type. Please upload CSV, Excel, or JSON or TXT files only.'
                 )
             # Validate file size (max 50MB)
             if file.size > 50 * 1024 * 1024:
@@ -46,6 +46,8 @@ class ModelTrainingForm(forms.ModelForm):
             ('svm', 'Support Vector Machine'),
             ('neural_network', 'Neural Network'),
             ('gradient_boosting', 'Gradient Boosting'),
+            ('decision_tree', 'Decision Tree'),
+
         ],
         widget=forms.Select(attrs={'class': 'form-control'})
     )
@@ -60,6 +62,31 @@ class ModelTrainingForm(forms.ModelForm):
             'placeholder': '0.2'
         }),
         help_text='Proportion of dataset to use for testing (0.1 - 0.5)'
+    )
+
+    validation_size = forms.FloatField(
+        initial=0.0,
+        min_value=0.0,
+        max_value=0.3,
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.05',
+            'placeholder': '0.0'
+        }),
+        help_text='Proportion for validation set (0.0 - 0.3, optional)'
+    )
+    
+    missing_value_strategy = forms.ChoiceField(
+        choices=[
+            ('mean', 'Mean Imputation'),
+            ('median', 'Median Imputation'),
+            ('mode', 'Mode Imputation'),
+            ('drop', 'Drop Rows with Missing Values'),
+        ],
+        initial='mean',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text='Strategy for handling missing values'
     )
     
     random_state = forms.IntegerField(
