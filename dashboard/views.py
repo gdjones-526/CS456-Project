@@ -3,14 +3,16 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from core.models import UploadedFile, AIModel, PerformanceMetric, Figure
 from .forms import FileUploadForm, ModelTrainingForm
-from .ml_utils import ModelTrainer
+from .ml_utils import *
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout
 import pandas as pd
 import os
 import json
 from django.conf import settings
-
+from django.http import JsonResponse
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth import login, logout, authenticate
 
 @login_required
 def upload_file(request):
@@ -42,7 +44,7 @@ def upload_file(request):
         'form': form,
         'recent_files': recent_files,
     }
-    return render(request, 'application/upload_file.html', context)
+    return render(request, 'upload_file.html', context)
 
 
 @login_required
@@ -133,6 +135,29 @@ def delete_file(request, pk):
     
     return render(request, 'dashboard/confirm_delete.html', {'file': file})
 
+@login_required
+def analyze_target(request, dataset_id, target_column):
+    """Analyze target column and determine task type"""
+    dataset = get_object_or_404(UploadedFile, pk=dataset_id, user=request.user)
+    
+    try:
+        df = load_dataframe(dataset)
+        validator = DataValidator()
+        
+        # Validate and analyze target
+        target_info = validator.check_target_column(df, target_column)
+        
+        return JsonResponse({
+            'success': True,
+            'task_type': target_info['task_type'],
+            'n_unique': target_info['n_unique'],
+            'class_distribution': target_info.get('class_distribution'),
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
 
 # Helper functions
 def process_uploaded_file(uploaded_file):
@@ -170,9 +195,19 @@ def load_dataframe(uploaded_file):
         return pd.read_excel(file_path)
     elif ext == '.json':
         return pd.read_json(file_path)
+    elif ext == '.txt':
+        # Try different delimiters for .txt files
+        try:
+            return pd.read_csv(file_path, sep='\t')
+        except:
+            try:
+                return pd.read_csv(file_path, sep=',')
+            except:
+                return pd.read_csv(file_path, delim_whitespace=True)
     else:
         raise ValueError(f"Unsupported file format: {ext}")
-    
+
+
 @login_required
 def train_model(request, dataset_id, algorithm=None):
     """Train a new model on a dataset"""
@@ -180,7 +215,7 @@ def train_model(request, dataset_id, algorithm=None):
     
     if not dataset.processed:
         messages.error(request, 'Dataset is not yet processed. Please wait.')
-        return redirect('file_detail', pk=dataset_id)
+        return redirect('application/file_detail', pk=dataset_id)
     
     # Get dataset columns for target selection
     try:
@@ -216,7 +251,9 @@ def train_model(request, dataset_id, algorithm=None):
                     target_column=model.target_variable,
                     algorithm=form.cleaned_data['algorithm'],
                     test_size=form.cleaned_data['test_size'],
+                    validation_size=form.cleaned_data.get('validation_size', 0.0),
                     random_state=form.cleaned_data['random_state'],
+                    missing_value_strategy=form.cleaned_data.get('missing_value_strategy', 'mean'),
                 )
                 
                 # Load and preprocess data
@@ -290,6 +327,7 @@ def train_model(request, dataset_id, algorithm=None):
     }
     return render(request, 'application/train_model.html', context)
 
+
 @login_required
 def model_detail(request, pk):
     """Display model details and metrics"""
@@ -303,6 +341,7 @@ def model_detail(request, pk):
         'figures': figures,
     }
     return render(request, 'application/model_detail.html', context)
+
 
 @login_required
 def model_list(request):

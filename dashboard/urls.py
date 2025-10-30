@@ -22,4 +22,6 @@ urlpatterns = [
     path('train/<int:dataset_id>/', views.train_model, name='train_model'),
     path('models/', views.model_list, name='model_list'),
     path('models/<int:pk>/', views.model_detail, name='model_detail'),
+
+    path('analyze-target/<int:dataset_id>/<str:target_column>/', views.analyze_target, name='analyze_target'),
 ]
