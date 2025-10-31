@@ -1,7 +1,6 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.contrib.auth.models import User
 from core.models import UploadedFile, AIModel, Experiment
+from .ml_utils import ModelRegistry
 
 class FileUploadForm(forms.ModelForm):
     class Meta:
@@ -31,7 +30,7 @@ class FileUploadForm(forms.ModelForm):
             ext = file.name[file.name.rfind('.'):].lower()
             if ext not in valid_extensions:
                 raise forms.ValidationError(
-                    f'Unsupported file type. Please upload CSV, Excel, or JSON or TXT files only.'
+                    f'Unsupported file type. Please upload CSV, Excel, JSON, or TXT files only.'
                 )
             # Validate file size (max 50MB)
             if file.size > 50 * 1024 * 1024:
@@ -40,20 +39,28 @@ class FileUploadForm(forms.ModelForm):
 
 
 class ModelTrainingForm(forms.ModelForm):
-
-    ALGORITHM_CHOICES = [
-        ('random_forest', 'Random Forest'),
-        ('logistic_regression', 'Logistic Regression'),
-        ('svm', 'Support Vector Machine'),
-        ('neural_network', 'Neural Network'),
-        ('gradient_boosting', 'Gradient Boosting'),
-    ]
+    # Build algorithm choices from registry (classification + regression)
+    ALGORITHM_CHOICES = []
+    # merge classification and regression models; use human-friendly name if available
+    combined = {**ModelRegistry.CLASSIFICATION_MODELS, **ModelRegistry.REGRESSION_MODELS}
+    for key, meta in combined.items():
+        display = meta.get('name', key.replace('_', ' ').title())
+        ALGORITHM_CHOICES.append((key, display))
 
     algorithm = forms.ChoiceField(
         choices=ALGORITHM_CHOICES,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
-    
+
+    task_type = forms.ChoiceField(
+        choices=[
+            ('classification', 'Classification'),
+            ('regression', 'Regression'),
+        ],
+        widget=forms.HiddenInput(),
+        required=False  # Make it optional so we can fallback to auto-detection
+    )
+
     test_size = forms.FloatField(
         initial=0.2,
         min_value=0.1,
@@ -65,7 +72,7 @@ class ModelTrainingForm(forms.ModelForm):
         }),
         help_text='Proportion of dataset to use for testing (0.1 - 0.5)'
     )
-
+    
     validation_size = forms.FloatField(
         initial=0.0,
         min_value=0.0,
@@ -115,7 +122,7 @@ class ModelTrainingForm(forms.ModelForm):
             })
         }
 
-    def __init__(self, user=None, algorithm=None, *args, **kwargs):
+    def __init__(self, user=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if user:
             # Only show datasets belonging to this user
@@ -123,9 +130,7 @@ class ModelTrainingForm(forms.ModelForm):
                 user=user, 
                 processed=True
             )
-        if algorithm and not self.is_bound:  # <-- check that form isn't bound
-            if algorithm in dict(self.ALGORITHM_CHOICES):
-                self.fields['algorithm'].initial = algorithm
+
 
 class ExperimentForm(forms.ModelForm):
     class Meta:

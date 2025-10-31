@@ -144,21 +144,6 @@
             <i class="bi bi-person-circle"></i> Account / Auth
           </a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#report" onclick="setActive(this)">
-            <i class="bi bi-journal-code"></i> Report & Docs
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#responsible-ai" onclick="setActive(this)">
-            <i class="bi bi-shield-check"></i> Responsible AI
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#robustness" onclick="setActive(this)">
-            <i class="bi bi-bug"></i> Robustness
-          </a>
-        </li>
       </ul>
     </div>
   </nav>
@@ -371,40 +356,154 @@
     </section>
 
     <!-- C) Evaluation, Metrics & Comparison -->
+    <!-- C) Evaluation Metrics Comparison -->
     <section id="evaluation" class="mb-5">
-      <h4 class="text-primary mb-3"><i class="bi bi-graph-up"></i> Evaluation, Metrics & Comparison</h4>
+      <h4 class="text-primary mb-3"><i class="bi bi-graph-up"></i> Model Evaluation & Metrics</h4>
       <div class="card shadow-sm p-4">
+        <p class="text-muted">Compare model performance and evaluation metrics</p>
         {% if trained_models %}
         <div class="table-responsive">
-          <table class="table table-striped table-hover align-middle">
-            <thead class="table-dark">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
               <tr>
-                <th>Model</th>
-                <th>Accuracy</th>
-                <th>Precision</th>
-                <th>Recall</th>
-                <th>F1 Score</th>
+                <th>Model Details</th>
+                <th>Task Type</th>
+                <th>Dataset</th>
+                <th>Metrics</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for model in trained_models %}
               <tr>
-                <td><strong>{{ model.name }}</strong></td>
                 <td>
-                  {% if model.latest_metric.accuracy %}
-                    <span class="badge bg-success">{{ model.latest_metric.accuracy|floatformat:2 }}%</span>
+                  <div class="d-flex align-items-center">
+                    <i class="bi bi-cpu text-primary me-2"></i>
+                    <div>
+                      <strong>{{ model.name }}</strong>
+                      <div class="small text-muted">Algorithm: {{ model.parameters.algorithm|default:"Unknown" }}</div>
+                      <div class="small text-muted">Created: {{ model.created_at|date:"M d, Y" }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge bg-{% if model.parameters.task_type == 'classification' %}info{% else %}success{% endif %}">
+                    {{ model.parameters.task_type|default:"Unknown"|title }}
+                  </span>
+                </td>
+                <td>
+                  <small class="text-muted">{{ model.dataset.original_name }}</small>
+                </td>
+                <td>
+                  {% if model.parameters.task_type == 'classification' %}
+                  <div class="small">
+                    <h6 class="text-primary mb-2">Classification Metrics</h6>
+                    <table class="table table-sm table-borderless mb-0">
+                      <tr>
+                        <td><strong>Accuracy:</strong></td>
+                        <td>
+                          {% if model.latest_metric.accuracy %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.accuracy|floatformat:3 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>Precision:</strong></td>
+                        <td>
+                          {% if model.latest_metric.precision %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.precision|floatformat:3 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>Recall:</strong></td>
+                        <td>
+                          {% if model.latest_metric.recall %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.recall|floatformat:3 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>F1 Score:</strong></td>
+                        <td>
+                          {% if model.latest_metric.f1_score %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.f1_score|floatformat:3 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
                   {% else %}
-                    <span class="text-muted">N/A</span>
+                  <div class="small">
+                    <h6 class="text-success mb-2">Regression Metrics</h6>
+                    <table class="table table-sm table-borderless mb-0">
+                      <tr>
+                        <td><strong>R² Score:</strong></td>
+                        <td>
+                          {% if model.latest_metric.r2_score %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.r2_score|floatformat:4 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>MSE:</strong></td>
+                        <td>
+                          {% if model.latest_metric.mse %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.mse|floatformat:4 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>RMSE:</strong></td>
+                        <td>
+                          {% if model.latest_metric.rmse %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.rmse|floatformat:4 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><strong>MAE:</strong></td>
+                        <td>
+                          {% if model.latest_metric.mae %}
+                            <span class="badge bg-light text-dark">{{ model.latest_metric.mae|floatformat:4 }}</span>
+                          {% else %}
+                            <span class="text-muted">N/A</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    </table>
+                  </div>
                   {% endif %}
                 </td>
-                <td>{{ model.latest_metric.precision|default:"N/A"|floatformat:2 }}</td>
-                <td>{{ model.latest_metric.recall|default:"N/A"|floatformat:2 }}</td>
-                <td>{{ model.latest_metric.f1_score|default:"N/A"|floatformat:2 }}</td>
                 <td>
                   <span class="badge bg-{% if model.status == 'completed' %}success{% elif model.status == 'training' %}warning{% else %}danger{% endif %}">
                     {{ model.get_status_display }}
                   </span>
+                </td>
+                <td>
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewModelDetails({{ model.id }})">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteModel({{ model.id }})">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
               {% endfor %}
@@ -417,9 +516,7 @@
         </div>
         {% endif %}
       </div>
-    </section>
-
-    <!-- D) Visualization Quality -->
+    </section>    <!-- D) Visualization Quality -->
     <section id="visualizations" class="mb-5">
       <h4 class="text-primary mb-3"><i class="bi bi-bar-chart-line"></i> Visualization Quality</h4>
       <div class="card shadow-sm p-4">
@@ -469,41 +566,7 @@
       </div>
     </section>
 
-    <!-- H) Reports -->
-    <section id="report" class="mb-5">
-      <h4 class="text-primary mb-3"><i class="bi bi-journal-code"></i> Project Report & Technical Discussion</h4>
-      <div class="card shadow-sm p-4">
-        <p class="text-muted">Summarize implemented features, technology stack, and results. Upload or generate comprehensive reports.</p>
-        <button class="btn btn-outline-primary" disabled>
-          <i class="bi bi-file-earmark-text"></i> Generate Report (Coming Soon)
-        </button>
-      </div>
-    </section>
-
-    <!-- I) Responsible AI -->
-    <section id="responsible-ai" class="mb-5">
-      <h4 class="text-primary mb-3"><i class="bi bi-shield-check"></i> Responsible AI & Data Handling</h4>
-      <div class="card shadow-sm p-4">
-        <p class="text-muted">Dataset sources, privacy considerations, fairness metrics, and ethical AI disclaimers.</p>
-        <div class="alert alert-info mb-0">
-          <i class="bi bi-info-circle"></i> Ensure compliance with data protection regulations and ethical AI practices. All uploaded data is private to your account.
-        </div>
-      </div>
-    </section>
-
-    <!-- J) Robustness -->
-    <section id="robustness" class="mb-5">
-      <h4 class="text-primary mb-3"><i class="bi bi-bug"></i> Robustness: Testing, Errors & Edge Cases</h4>
-      <div class="card shadow-sm p-4">
-        <p class="text-muted">Error handling, loading states, and validation results.</p>
-        <div class="alert alert-warning">
-          <i class="bi bi-exclamation-triangle"></i> File validation checks include: file size limits (50MB max), supported formats (CSV, Excel, JSON), and data integrity.
-        </div>
-        <div class="alert alert-success mb-0">
-          <i class="bi bi-check-circle"></i> All uploaded files are automatically validated and processed.
-        </div>
-      </div>
-    </section>
+    <!-- End of sections -->
   </main>
 
   <!-- Delete Confirmation Modal -->
@@ -595,13 +658,39 @@
       });
     });
 
-    // Delete confirmation
+    // Delete confirmation for files
     function confirmDelete(fileId, fileName) {
       document.getElementById('deleteFileName').textContent = fileName;
       const deleteForm = document.getElementById('deleteForm');
       deleteForm.action = `/files/${fileId}/delete/`;
       const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
       modal.show();
+    }
+
+    // View model details
+    function viewModelDetails(modelId) {
+      window.location.href = `/models/${modelId}/`;
+    }
+
+    // Delete model
+    function deleteModel(modelId) {
+      if (confirm('Are you sure you want to delete this model? This action cannot be undone.')) {
+        fetch(`/models/${modelId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          },
+        }).then(response => {
+          if (response.ok) {
+            window.location.reload();
+          } else {
+            alert('Error deleting model. Please try again.');
+          }
+        }).catch(error => {
+          console.error('Error:', error);
+          alert('Error deleting model. Please try again.');
+        });
+      }
     }
   </script>
 </body>

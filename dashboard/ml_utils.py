@@ -454,6 +454,8 @@ class ModelTrainer:
         self.label_encoders = {}
         self.preprocessing_config = PreprocessingConfig()
         self.validator = DataValidator()
+        # Detected task_type after inspecting the target column (set in load_and_preprocess_data)
+        self.detected_task_type = None
         
     def load_and_preprocess_data(self):
         """Load dataset and perform preprocessing"""
@@ -484,12 +486,16 @@ class ModelTrainer:
         # Validate target
         target_validation = self.validator.check_target_column(df, self.target_column)
         print(f"Task type detected: {target_validation['task_type']}")
+        # store detected task type so trainer can pick the correct model family
+        self.detected_task_type = target_validation.get('task_type')
         
         # Store original dtypes
+        # If the caller did not explicitly set a task_type, prefer the detected one
+        # Keep original self.task_type so callers that force a type still have that value
         self.preprocessing_config.update(
             column_dtypes={col: str(dtype) for col, dtype in df.dtypes.items()},
             target_column=self.target_column,
-            task_type=self.task_type
+            task_type=self.detected_task_type or self.task_type
         )
         
         # Separate features and target
@@ -582,10 +588,13 @@ class ModelTrainer:
         if self.X_train is None:
             raise ValueError("Data not loaded. Call load_and_preprocess_data() first")
         
+        # Decide effective task type: prefer detected if available, otherwise use configured
+        effective_task = self.detected_task_type or self.task_type
+
         # Get model from registry
-        model_info = ModelRegistry.get_model(self.algorithm, self.task_type)
+        model_info = ModelRegistry.get_model(self.algorithm, effective_task)
         if not model_info:
-            raise ValueError(f"Unknown algorithm: {self.algorithm} for task: {self.task_type}")
+            raise ValueError(f"Unknown algorithm: {self.algorithm} for task: {effective_task}")
         
         # Merge default params with custom params
         params = {**model_info['default_params'], **self.algorithm_params}
@@ -604,10 +613,13 @@ class ModelTrainer:
         """Evaluate with consistent metrics for both classification and regression"""
         if self.model is None:
             raise ValueError("Model not trained")
-        
+
+        # use detected task if available
+        effective_task = self.detected_task_type or self.task_type
+
         y_pred = self.model.predict(self.X_test)
-        
-        if self.task_type == 'classification':
+
+        if effective_task == 'classification':
             metrics = {
                 'accuracy': accuracy_score(self.y_test, y_pred) * 100,
                 'precision': precision_score(self.y_test, y_pred, average='weighted', zero_division=0),
@@ -631,13 +643,15 @@ class ModelTrainer:
         if self.model is None:
             raise ValueError("Model not trained")
         
+        effective_task = self.detected_task_type or self.task_type
+
         model_data = {
             'model': self.model,
             'scaler': self.scaler,
             'label_encoders': self.label_encoders,
             'feature_names': self.feature_names,
             'algorithm': self.algorithm,
-            'task_type': self.task_type,
+            'task_type': effective_task,
             'preprocessing_config': self.preprocessing_config.to_dict(),
         }
         
@@ -651,7 +665,8 @@ class ModelTrainer:
     
     def generate_confusion_matrix_plot(self):
         """Generate confusion matrix for classification"""
-        if self.task_type != 'classification':
+        effective_task = self.detected_task_type or self.task_type
+        if effective_task != 'classification':
             return None
             
         _, cm, _ = self.evaluate_model()
