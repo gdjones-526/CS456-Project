@@ -136,41 +136,71 @@
     </div>
 
     <!-- Performance Metrics -->
-    {% if metrics %}
-    <div class="card">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Performance Metrics</h5>
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-3">
-            <div class="metric-card">
-              <div class="metric-value">{{ metrics.accuracy|floatformat:2 }}%</div>
-              <div class="metric-label">Accuracy</div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-              <div class="metric-value">{{ metrics.precision|floatformat:2 }}</div>
-              <div class="metric-label">Precision</div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-              <div class="metric-value">{{ metrics.recall|floatformat:2 }}</div>
-              <div class="metric-label">Recall</div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-              <div class="metric-value">{{ metrics.f1_score|floatformat:2 }}</div>
-              <div class="metric-label">F1 Score</div>
-            </div>
+{% if metrics %}
+<div class="card">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Performance Metrics</h5>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% if metrics.accuracy %}
+        <!-- Classification Metrics -->
+        <div class="col-md-3">
+          <div class="metric-card">
+            <div class="metric-value">{{ metrics.accuracy|floatformat:2 }}%</div>
+            <div class="metric-label">Accuracy</div>
           </div>
         </div>
-      </div>
+        <div class="col-md-3">
+          <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="metric-value">{{ metrics.precision|floatformat:2 }}</div>
+            <div class="metric-label">Precision</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="metric-value">{{ metrics.recall|floatformat:2 }}</div>
+            <div class="metric-label">Recall</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <div class="metric-value">{{ metrics.f1_score|floatformat:2 }}</div>
+            <div class="metric-label">F1 Score</div>
+          </div>
+        </div>
+
+      {% else %}
+        <!-- Regression Metrics -->
+        <div class="col-md-3">
+          <div class="metric-card">
+            <div class="metric-value">{{ metrics.mse|floatformat:4 }}</div>
+            <div class="metric-label">MSE</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="metric-value">{{ metrics.rmse|floatformat:4 }}</div>
+            <div class="metric-label">RMSE</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="metric-value">{{ metrics.mae|floatformat:4 }}</div>
+            <div class="metric-label">MAE</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <div class="metric-value">{{ metrics.r2_score|floatformat:4 }}</div>
+            <div class="metric-label">R² Score</div>
+          </div>
+        </div>
+      {% endif %}
     </div>
-    {% endif %}
+  </div>
+</div>
+{% endif %}
 
     <!-- Training Configuration -->
     <div class="card">

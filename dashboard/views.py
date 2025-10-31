@@ -226,7 +226,18 @@ def train_model(request, dataset_id, algorithm=None):
         return redirect('file_detail', pk=dataset_id)
     
     if request.method == 'POST':
+
+        print("POST data:", request.POST)
+
         form = ModelTrainingForm(user=request.user, data=request.POST)
+
+        if not form.is_valid():
+            print("Form errors:", form.errors)
+            for field, errors in form.errors.items():
+                field_label = form.fields.get(field).label if form.fields.get(field) else field
+                for error in errors:
+                    messages.error(request, f"{field_label}: {error}")
+        
         if form.is_valid():
             # Create model record
             model = form.save(commit=False)
@@ -240,19 +251,24 @@ def train_model(request, dataset_id, algorithm=None):
                 'algorithm': form.cleaned_data['algorithm'],
                 'test_size': form.cleaned_data['test_size'],
                 'random_state': form.cleaned_data['random_state'],
+                'task_type': form.cleaned_data['task_type'],
             }
             model.save()
             
-            # Start training (in production, use Celery for async)
             try:
+                # FIX: Use .get() to provide default values
+                test_size_val = form.cleaned_data.get('test_size', 0.2)
+                random_state_val = form.cleaned_data.get('random_state', 42)
+
                 # Initialize trainer
                 trainer = ModelTrainer(
                     dataset_path=dataset.file.path,
                     target_column=model.target_variable,
                     algorithm=form.cleaned_data['algorithm'],
-                    test_size=form.cleaned_data['test_size'],
+                    test_size=test_size_val,
+                    task_type=form.cleaned_data['task_type'],
                     validation_size=form.cleaned_data.get('validation_size', 0.0),
-                    random_state=form.cleaned_data['random_state'],
+                    random_state=random_state_val,
                     missing_value_strategy=form.cleaned_data.get('missing_value_strategy', 'mean'),
                 )
                 
@@ -264,16 +280,32 @@ def train_model(request, dataset_id, algorithm=None):
                 
                 # Evaluate model
                 metrics, cm, predictions = trainer.evaluate_model()
-                
-                # Save metrics
-                PerformanceMetric.objects.create(
-                    model=model,
-                    accuracy=metrics['accuracy'],
-                    precision=metrics['precision'],
-                    recall=metrics['recall'],
-                    f1_score=metrics['f1_score'],
-                )
-                
+
+                #  Save metrics - HANDLE BOTH CLASSIFICATION AND REGRESSION
+                if form.cleaned_data['task_type'] == 'classification':
+                    PerformanceMetric.objects.create(
+                        model=model,
+                        accuracy=metrics.get('accuracy'),
+                        precision=metrics.get('precision'),
+                        recall=metrics.get('recall'),
+                        f1_score=metrics.get('f1_score'),
+                        loss=metrics.get('loss'),
+                    )
+                else:  # regression
+                    PerformanceMetric.objects.create(
+                        model=model,
+                        mse=metrics.get('mse'),
+                        rmse=metrics.get('rmse'),
+                        mae=metrics.get('mae'),
+                        r2_score=metrics.get('r2_score'),
+                        # Optional: use MSE as loss for consistency
+                        loss=metrics.get('mse'),
+                        accuracy=None,
+                        precision=None,
+                        recall=None,
+                        f1_score=None,
+                    )
+
                 # Save model file
                 model_filename = f"model_{model.id}_{form.cleaned_data['algorithm']}.joblib"
                 model_path = os.path.join(settings.MEDIA_ROOT, 'trained_models', model_filename)
@@ -304,7 +336,7 @@ def train_model(request, dataset_id, algorithm=None):
                 model.status = 'completed'
                 model.save()
                 
-                messages.success(request, f'Model "{model.name}" trained successfully with {metrics["accuracy"]:.2f}% accuracy!')
+                messages.success(request, f'Model "{model.name}" trained successfully with ') #{metrics["accuracy"]:.2f}% accuracy!
                 return redirect('model_detail', pk=model.id)
                 
             except Exception as e:

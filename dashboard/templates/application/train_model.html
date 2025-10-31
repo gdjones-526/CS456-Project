@@ -226,9 +226,14 @@
                 {% endfor %}
               </div>
             </div>
-            <!-- Hidden field for algorithm -->
-            <input type="hidden" name="algorithm" id="algorithmInput" value="{{ form.initial.algorithm|default:'' }}">
-            <input type="hidden" name="target_variable" id="targetVariableInput" value="{{ form.initial.target_variable|default:'' }}">
+            <!-- Task type indicator -->
+            <div id="taskTypeIndicator" class="alert alert-info d-none">
+              <i class="bi bi-info-circle"></i>
+              <strong>Detected Task Type:</strong> <span id="taskTypeName"></span>
+              <p class="mb-0 small mt-2" id="taskTypeDescription"></p>
+            </div>
+            <!-- Hidden field for target variable -->
+            <input type="hidden" name="target_variable" id="targetVariableInput" required>
             <div class="text-end mt-4">
               <button type="button" class="btn btn-primary btn-lg" onclick="analyzeTarget()" id="step1Next" disabled>
                 Next <i class="bi bi-arrow-right"></i>
@@ -289,6 +294,21 @@
                   <div class="text-danger small">{{ form.test_size.errors }}</div>
                 {% endif %}
                 <div class="form-text">Proportion of data to use for testing (0.1 - 0.5)</div>
+              </div>
+              <div class="col-md-6">
+                <label for="id_validation_size" class="form-label fw-semibold">Validation Size (Optional)</label>
+                {{ form.validation_size }}
+                {% if form.validation_size.errors %}
+                  <div class="text-danger small">{{ form.validation_size.errors }}</div>
+                {% endif %}
+                <div class="form-text">Proportion for validation set</div>
+              </div>
+              <div class="col-md-6">
+                <label for="id_missing_value_strategy" class="form-label fw-semibold">Missing Value Strategy</label>
+                {{ form.missing_value_strategy }}
+                {% if form.missing_value_strategy.errors %}
+                  <div class="text-danger small">{{ form.missing_value_strategy.errors }}</div>
+                {% endif %}
               </div>
               <div class="col-md-6">
                 <label for="id_random_state" class="form-label fw-semibold">Random State</label>
@@ -373,8 +393,14 @@
       </div>
 
       <!-- Hidden dataset field -->
-      <input type="hidden" name="algorithm" id="algorithmInput" required>
-      <input type="hidden" name="target_variable" id="targetVariableInput" required>
+      <input type="hidden" name="dataset" value="{{ dataset.pk }}">
+      
+      <!-- Hidden task_type field - will be set by JavaScript -->
+      <input type="hidden" name="task_type" id="taskTypeInput" value="">
+      
+      <!-- Hidden fields that will be populated by form -->
+      <input type="hidden" name="validation_size" id="validationSizeInput" value="0.0">
+      <input type="hidden" name="missing_value_strategy" id="missingValueStrategyInput" value="mean">
     </form>
   </div>
 
@@ -385,8 +411,7 @@
     let selectedTarget = '';
     let taskType = '';
     
-    // Dataset column information passed from Django
-    const datasetColumns = {{ columns|safe }};
+    // Dataset information passed from Django
     const datasetId = {{ dataset.pk }};
 
     // Algorithm definitions with task type compatibility
@@ -466,45 +491,89 @@
         return;
       }
 
-      // Show loading
+      // Show loading state
       const btn = document.getElementById('step1Next');
+      const originalText = btn.innerHTML;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
       btn.disabled = true;
 
       try {
         // Call backend to analyze target column
-        const response = await fetch(`/analyze-target/${datasetId}/${selectedTarget}/`);
-        const data = await response.json();
-        
-        taskType = data.task_type;
-        
-        // Show task type indicator
-        document.getElementById('taskTypeIndicator').classList.remove('d-none');
-        document.getElementById('taskTypeName').textContent = taskType.toUpperCase();
-        
-        if (taskType === 'classification') {
-          document.getElementById('taskTypeDescription').innerHTML = 
-            `Classification task detected. Target has <strong>${data.n_unique}</strong> unique values. 
-            Suitable algorithms: Random Forest, Logistic Regression, SVM, etc.`;
-        } else {
-          document.getElementById('taskTypeDescription').innerHTML = 
-            `Regression task detected. Target is continuous with <strong>${data.n_unique}</strong> unique values. 
-            Suitable algorithms: Random Forest, Linear Regression, Ridge Regression, etc.`;
-        }
+        const response = await fetch(`/analyze-target/${datasetId}/${encodeURIComponent(selectedTarget)}/`);
+        if (!response.ok) throw new Error('Failed to analyze target');
 
-        // Populate algorithms for next step
-        populateAlgorithms(taskType);
-        
-        // Move to next step
-        setTimeout(() => {
-          nextStep(2);
-        }, 1000);
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Analysis failed');
+
+        // Show results summary
+        const indicator = document.getElementById('taskTypeIndicator');
+        indicator.classList.remove('d-none');
+        document.getElementById('taskTypeDescription').innerHTML = `
+          The target variable <strong>${selectedTarget}</strong> has <strong>${data.n_unique}</strong> unique values.<br>
+          Please choose whether this should be treated as a <strong>Regression</strong> or <strong>Classification</strong> problem.
+        `;
+
+        // Display user selection buttons
+        const selectorDiv = document.createElement('div');
+        selectorDiv.classList.add('mt-3', 'd-flex', 'gap-3');
+
+        selectorDiv.innerHTML = `
+          <button id="selectRegression" class="btn btn-outline-primary flex-fill">
+            <i class="bi bi-graph-up"></i> Regression
+          </button>
+          <button id="selectClassification" class="btn btn-outline-success flex-fill">
+            <i class="bi bi-diagram-3"></i> Classification
+          </button>
+        `;
+
+        indicator.appendChild(selectorDiv);
+
+        // Set up click handlers
+        document.getElementById('selectRegression').onclick = () => {
+          setTaskType('regression', data.n_unique);
+        };
+
+        document.getElementById('selectClassification').onclick = () => {
+          setTaskType('classification', data.n_unique);
+        };
 
       } catch (error) {
-        alert('Error analyzing target variable. Please try again.');
-        btn.innerHTML = 'Next <i class="bi bi-arrow-right"></i>';
+        console.error('Error:', error);
+        alert('Error analyzing target variable: ' + error.message);
+        btn.innerHTML = originalText;
         btn.disabled = false;
       }
+    }
+
+    function setTaskType(type, n_unique) {
+      taskType = type;
+
+      // Set hidden input
+      document.getElementById('taskTypeInput').value = type;
+
+      // Update indicator UI
+      document.getElementById('taskTypeName').textContent = type.toUpperCase();
+      document.getElementById('taskTypeDescription').innerHTML = 
+        type === 'classification'
+          ? `Classification task selected. Target has <strong>${n_unique}</strong> unique values.
+            Suitable algorithms: Random Forest, Logistic Regression, SVM, etc.`
+          : `Regression task selected. Target has <strong>${n_unique}</strong> unique values.
+            Suitable algorithms: Random Forest, Linear Regression, Ridge Regression, etc.`;
+
+      // Clear selection buttons
+      const selectorDiv = document.querySelector('#taskTypeIndicator div.d-flex');
+      if (selectorDiv) selectorDiv.remove();
+
+      // Populate algorithm list and move on
+      populateAlgorithms(type);
+
+      // Re-enable and reset button
+      const btn = document.getElementById('step1Next');
+      btn.innerHTML = 'Next';
+      btn.disabled = false;
+
+      // Proceed to next step
+      setTimeout(() => nextStep(2), 600);
     }
 
     function populateAlgorithms(taskType) {
@@ -596,21 +665,41 @@
 
     // Form submission
     document.getElementById('trainingForm').addEventListener('submit', function(e) {
+      // Capture values from the form fields and set hidden inputs
+      const validationSize = document.getElementById('id_validation_size');
+      const missingValueStrategy = document.getElementById('id_missing_value_strategy');
+      
+      if (validationSize) {
+        document.getElementById('validationSizeInput').value = validationSize.value || '0.0';
+      }
+      if (missingValueStrategy) {
+        document.getElementById('missingValueStrategyInput').value = missingValueStrategy.value || 'mean';
+      }
+      
+      // Debug: log all form values
+      console.log('Form submission:');
+      console.log('Algorithm:', document.getElementById('algorithmInput').value);
+      console.log('Target:', document.getElementById('targetVariableInput').value);
+      console.log('Dataset:', document.querySelector('input[name="dataset"]').value);
+      console.log('Validation Size:', document.getElementById('validationSizeInput').value);
+      console.log('Missing Value Strategy:', document.getElementById('missingValueStrategyInput').value);
+      
+      // Check if required fields are filled
+      if (!document.getElementById('algorithmInput').value) {
+        e.preventDefault();
+        alert('Algorithm not selected. Please go back and select an algorithm.');
+        return false;
+      }
+      
+      if (!document.getElementById('targetVariableInput').value) {
+        e.preventDefault();
+        alert('Target variable not selected. Please go back and select a target variable.');
+        return false;
+      }
+      
       const button = document.getElementById('trainButton');
       button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Training...';
       button.disabled = true;
-    });
-
-    window.addEventListener('DOMContentLoaded', (event) => {
-    const initialAlgorithm = document.getElementById('algorithmInput').value;
-    if (initialAlgorithm) {
-        const card = document.querySelector(`.algorithm-card[data-algorithm="${initialAlgorithm}"]`);
-        if (card) {
-            card.classList.add('selected');
-            selectedAlgorithm = initialAlgorithm;
-            document.getElementById('step1Next').disabled = false;
-        }
-      }
     });
   </script>
 </body>
