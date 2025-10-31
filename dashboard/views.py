@@ -13,6 +13,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
+from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def upload_file(request):
@@ -46,7 +47,36 @@ def upload_file(request):
     }
     return render(request, 'upload_file.html', context)
 
+@csrf_exempt
+def analyze_selection(request, dataset_id):
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+            features = body.get("features", [])
+            target = body.get("target")
 
+            if not features or not target:
+                return JsonResponse({"success": False, "error": "Missing features or target variable."})
+
+            # Load dataset (assuming you have a Dataset model)
+            dataset = Dataset.objects.get(pk=dataset_id)
+            df = pd.read_csv(dataset.file.path)
+
+            if target not in df.columns or any(f not in df.columns for f in features):
+                return JsonResponse({"success": False, "error": "Invalid column selection."})
+
+            # Basic target type detection
+            task_type = "classification" if df[target].nunique() < 10 else "regression"
+
+            return JsonResponse({
+                "success": True,
+                "task_type": task_type,
+                "n_features": len(features)
+            })
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+        
 @login_required
 def dashboard(request):
     """Main dashboard view with file upload and management"""

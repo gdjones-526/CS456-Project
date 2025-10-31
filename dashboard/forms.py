@@ -1,6 +1,6 @@
 from django import forms
 from core.models import UploadedFile, AIModel, Experiment
-
+from .ml_utils import ModelRegistry
 
 class FileUploadForm(forms.ModelForm):
     class Meta:
@@ -39,15 +39,16 @@ class FileUploadForm(forms.ModelForm):
 
 
 class ModelTrainingForm(forms.ModelForm):
+    # Build algorithm choices from registry (classification + regression)
+    ALGORITHM_CHOICES = []
+    # merge classification and regression models; use human-friendly name if available
+    combined = {**ModelRegistry.CLASSIFICATION_MODELS, **ModelRegistry.REGRESSION_MODELS}
+    for key, meta in combined.items():
+        display = meta.get('name', key.replace('_', ' ').title())
+        ALGORITHM_CHOICES.append((key, display))
+
     algorithm = forms.ChoiceField(
-        choices=[
-            ('random_forest', 'Random Forest'),
-            ('logistic_regression', 'Logistic Regression'),
-            ('svm', 'Support Vector Machine'),
-            ('neural_network', 'Neural Network'),
-            ('gradient_boosting', 'Gradient Boosting'),
-            ('decision_tree', 'Decision Tree'),
-        ],
+        choices=ALGORITHM_CHOICES,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
 
@@ -59,7 +60,7 @@ class ModelTrainingForm(forms.ModelForm):
         widget=forms.HiddenInput(),
         required=False  # Make it optional so we can fallback to auto-detection
     )
-    
+
     test_size = forms.FloatField(
         initial=0.2,
         min_value=0.1,

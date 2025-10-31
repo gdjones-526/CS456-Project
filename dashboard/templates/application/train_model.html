@@ -7,144 +7,18 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      background-color: #f8f9fa;
-    }
-    
-    .navbar-custom {
-      background-color: #212529;
-      box-shadow: 0 2px 4px rgba(0,0,0,.1);
-    }
-    
-    .main-container {
-      max-width: 1200px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-    
-    .card {
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,.1);
-      margin-bottom: 1.5rem;
-    }
-    
-    .algorithm-card {
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-      height: 100%;
-    }
-    
-    .algorithm-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 20px rgba(0,0,0,.15);
-    }
-    
-    .algorithm-card.selected {
-      border-color: #0d6efd;
-      background-color: #e7f3ff;
-    }
-    
-    .algorithm-icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    
-    .step-indicator {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 2rem;
-      position: relative;
-    }
-    
-    .step {
-      flex: 1;
-      text-align: center;
-      position: relative;
-    }
-    
-    .step-number {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: #e9ecef;
-      color: #6c757d;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      position: relative;
-      z-index: 2;
-    }
-    
-    .step.active .step-number {
-      background-color: #0d6efd;
-      color: white;
-    }
-    
-    .step.completed .step-number {
-      background-color: #198754;
-      color: white;
-    }
-    
-    .step-line {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      right: -50%;
-      height: 2px;
-      background-color: #e9ecef;
-      z-index: 1;
-    }
-    
-    .step:last-child .step-line {
-      display: none;
-    }
-    
-    .step.completed .step-line {
-      background-color: #198754;
-    }
-    
-    .column-tag {
-      display: inline-block;
-      padding: 0.5rem 1rem;
-      margin: 0.25rem;
-      background-color: #e9ecef;
-      border-radius: 0.375rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: 'Courier New', monospace;
-    }
-    
-    .column-tag:hover {
-      background-color: #dee2e6;
-    }
-    
-    .column-tag.selected {
-      background-color: #0d6efd;
-      color: white;
-    }
-    
-    .training-info {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 2rem;
-      border-radius: 0.5rem;
-    }
-    
-    .param-section {
-      display: none;
-    }
-    
-    .param-section.active {
-      display: block;
-    }
+    body { background-color: #f8f9fa; font-family: system-ui, sans-serif; }
+    .navbar-custom { background-color: #212529; }
+    .main-container { max-width: 1200px; margin: 2rem auto; }
+    .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 1.5rem; }
+    .algorithm-card { cursor: pointer; transition: all 0.3s; border: 2px solid transparent; }
+    .algorithm-card:hover { transform: translateY(-5px); box-shadow: 0 5px 20px rgba(0,0,0,.15); }
+    .algorithm-card.selected { border-color: #0d6efd; background-color: #e7f3ff; }
+    .algorithm-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .section-title { color: #0d6efd; margin-bottom: 1rem; border-bottom: 2px solid #e9ecef; padding-bottom: 0.5rem; }
   </style>
 </head>
 <body>
-  <!-- Navbar -->
   <nav class="navbar navbar-dark navbar-custom">
     <div class="container-fluid">
       <a class="navbar-brand" href="{% url 'file_detail' dataset.pk %}">
@@ -156,550 +30,180 @@
     </div>
   </nav>
 
-  <!-- Main Content -->
   <div class="main-container">
-    <!-- Django Messages -->
     {% if messages %}
-    <div class="mb-4">
-      {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      <div class="mb-4">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
     {% endif %}
 
-    <!-- Header -->
     <div class="card">
       <div class="card-body">
-        <h2 class="mb-3">
-          <i class="bi bi-robot text-primary"></i> Train Machine Learning Model
-        </h2>
-        <div class="training-info">
-          <h5><i class="bi bi-file-earmark-spreadsheet"></i> Dataset: {{ dataset.original_name }}</h5>
-          <p class="mb-0">Configure your model training parameters and start training</p>
-        </div>
+        <h2 class="mb-3"><i class="bi bi-robot text-primary"></i> Train Machine Learning Model</h2>
+        <p class="text-muted">Configure your model training parameters and start training.</p>
       </div>
     </div>
 
-    <!-- Step Indicator -->
-    <div class="step-indicator">
-              <div class="step active" id="step1Indicator">
-        <div class="step-number">1</div>
-        <div class="step-label">Target Variable</div>
-        <div class="step-line"></div>
-      </div>
-      <div class="step" id="step2Indicator">
-        <div class="step-number">2</div>
-        <div class="step-label">Algorithm</div>
-        <div class="step-line"></div>
-      </div>
-      <div class="step" id="step3Indicator">
-        <div class="step-number">3</div>
-        <div class="step-label">Configuration</div>
-        <div class="step-line"></div>
-      </div>
-      <div class="step" id="step4Indicator">
-        <div class="step-number">4</div>
-        <div class="step-label">Review & Train</div>
-      </div>
-    </div>
-
-    <form method="post" id="trainingForm">
+    <form method="post" id="trainingForm" class="mt-4">
       {% csrf_token %}
       
-      <!-- Step 1: Target Variable Selection -->
-      <div class="training-step" id="step1">
+      <!-- Target + Features -->
+      <section>
+        <h3 class="section-title"><i class="bi bi-table"></i> Features and Target</h3>
         <div class="card">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="bi bi-bullseye"></i> Step 1: Select Target Variable</h5>
-          </div>
           <div class="card-body">
-            <p class="text-muted mb-4">Choose the column you want to predict</p>
             <div class="mb-3">
-              <label class="form-label fw-semibold">Available Columns:</label>
-              <div id="columnSelection">
-                {% for column in columns %}
-                <span class="column-tag" data-column="{{ column }}">{{ column }}</span>
+              <label for="targetVariable" class="form-label fw-bold">Target Variable</label>
+              <select id="targetVariable" name="target_variable" class="form-select" required>
+                <option value="">-- Select target variable --</option>
+                {% for col in columns %}
+                  <option value="{{ col }}">{{ col }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">Select Features</label>
+              <div class="row">
+                {% for col in columns %}
+                  <div class="col-md-3 col-6 mb-2">
+                    <div class="form-check">
+                      <input class="form-check-input feature-checkbox" type="checkbox" value="{{ col }}" id="feature_{{ forloop.counter }}" name="features">
+                      <label class="form-check-label" for="feature_{{ forloop.counter }}">{{ col }}</label>
+                    </div>
+                  </div>
                 {% endfor %}
               </div>
             </div>
-            <!-- Task type indicator -->
-            <div id="taskTypeIndicator" class="alert alert-info d-none">
-              <i class="bi bi-info-circle"></i>
-              <strong>Detected Task Type:</strong> <span id="taskTypeName"></span>
-              <p class="mb-0 small mt-2" id="taskTypeDescription"></p>
-            </div>
-            <!-- Hidden field for target variable -->
-            <input type="hidden" name="target_variable" id="targetVariableInput" required>
-            <div class="text-end mt-4">
-              <button type="button" class="btn btn-primary btn-lg" onclick="analyzeTarget()" id="step1Next" disabled>
-                Next <i class="bi bi-arrow-right"></i>
-              </button>
-            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Step 2: Algorithm Selection -->
-      <div class="training-step d-none" id="step2">
+      <!-- Task Type -->
+      <section>
+        <h3 class="section-title"><i class="bi bi-gear"></i> Task Type</h3>
         <div class="card">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="bi bi-cpu"></i> Step 2: Select Algorithm</h5>
-          </div>
           <div class="card-body">
-            <div class="alert alert-success mb-4">
-              <strong>Target:</strong> <span id="selectedTargetDisplay"></span> | 
-              <strong>Task:</strong> <span id="taskTypeDisplay"></span>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="task_type" id="classification" value="classification" required>
+              <label class="form-check-label" for="classification">Classification</label>
             </div>
-            <p class="text-muted mb-4">Choose a machine learning algorithm suitable for your task</p>
-            <div class="row g-3" id="algorithmGrid">
-              <!-- Algorithms will be populated dynamically -->
-            </div>
-            <!-- Hidden field for algorithm -->
-            <input type="hidden" name="algorithm" id="algorithmInput" required>
-            <div class="d-flex justify-content-between mt-4">
-              <button type="button" class="btn btn-outline-secondary" onclick="prevStep(1)">
-                <i class="bi bi-arrow-left"></i> Previous
-              </button>
-              <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(3)" id="step2Next" disabled>
-                Next <i class="bi bi-arrow-right"></i>
-              </button>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="task_type" id="regression" value="regression">
+              <label class="form-check-label" for="regression">Regression</label>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Step 3: Configuration -->
-      <div class="training-step d-none" id="step3">
+      <!-- Algorithm -->
+      <section>
+        <h3 class="section-title"><i class="bi bi-cpu"></i> Algorithm Selection</h3>
         <div class="card">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="bi bi-sliders"></i> Step 3: Training Configuration</h5>
+          <div class="card-body">
+            <div class="row g-3" id="algorithmGrid"></div>
+            <input type="hidden" name="algorithm" id="algorithmInput" required>
           </div>
+        </div>
+      </section>
+
+      <!-- Config -->
+      <section>
+        <h3 class="section-title"><i class="bi bi-sliders"></i> Model Configuration</h3>
+        <div class="card">
           <div class="card-body">
             <div class="row g-3">
               <div class="col-md-6">
                 <label for="id_name" class="form-label fw-semibold">Model Name</label>
                 {{ form.name }}
-                {% if form.name.errors %}
-                  <div class="text-danger small">{{ form.name.errors }}</div>
-                {% endif %}
               </div>
               <div class="col-md-6">
                 <label for="id_test_size" class="form-label fw-semibold">Test Size</label>
                 {{ form.test_size }}
-                {% if form.test_size.errors %}
-                  <div class="text-danger small">{{ form.test_size.errors }}</div>
-                {% endif %}
-                <div class="form-text">Proportion of data to use for testing (0.1 - 0.5)</div>
               </div>
               <div class="col-md-6">
                 <label for="id_validation_size" class="form-label fw-semibold">Validation Size (Optional)</label>
                 {{ form.validation_size }}
-                {% if form.validation_size.errors %}
-                  <div class="text-danger small">{{ form.validation_size.errors }}</div>
-                {% endif %}
-                <div class="form-text">Proportion for validation set</div>
               </div>
               <div class="col-md-6">
                 <label for="id_missing_value_strategy" class="form-label fw-semibold">Missing Value Strategy</label>
                 {{ form.missing_value_strategy }}
-                {% if form.missing_value_strategy.errors %}
-                  <div class="text-danger small">{{ form.missing_value_strategy.errors }}</div>
-                {% endif %}
               </div>
               <div class="col-md-6">
                 <label for="id_random_state" class="form-label fw-semibold">Random State</label>
                 {{ form.random_state }}
-                {% if form.random_state.errors %}
-                  <div class="text-danger small">{{ form.random_state.errors }}</div>
-                {% endif %}
-                <div class="form-text">Random seed for reproducibility</div>
               </div>
-            </div>
-            
-            <div class="d-flex justify-content-between mt-4">
-              <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
-                <i class="bi bi-arrow-left"></i> Previous
-              </button>
-              <button type="button" class="btn btn-primary btn-lg" onclick="nextStep(4)">
-                Next <i class="bi bi-arrow-right"></i>
-              </button>
             </div>
           </div>
         </div>
+      </section>
+
+      <div class="alert alert-info mt-4">
+        <i class="bi bi-info-circle"></i> Training may take a few moments depending on dataset size and algorithm complexity.
       </div>
 
-      <!-- Step 4: Review & Train -->
-      <div class="training-step d-none" id="step4">
-        <div class="card">
-          <div class="card-header bg-success text-white">
-            <h5 class="mb-0"><i class="bi bi-check-circle"></i> Step 4: Review & Start Training</h5>
-          </div>
-          <div class="card-body">
-            <h5 class="mb-3">Training Summary</h5>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="card bg-light">
-                  <div class="card-body">
-                    <h6 class="text-muted">Dataset</h6>
-                    <p class="mb-0"><strong>{{ dataset.original_name }}</strong></p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="card bg-light">
-                  <div class="card-body">
-                    <h6 class="text-muted">Algorithm</h6>
-                    <p class="mb-0"><strong id="reviewAlgorithm">-</strong></p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="card bg-light">
-                  <div class="card-body">
-                    <h6 class="text-muted">Target Variable</h6>
-                    <p class="mb-0"><strong id="reviewTarget">-</strong></p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="card bg-light">
-                  <div class="card-body">
-                    <h6 class="text-muted">Test Size</h6>
-                    <p class="mb-0"><strong id="reviewTestSize">20%</strong></p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="alert alert-info mt-4">
-              <i class="bi bi-info-circle"></i> 
-              <strong>Note:</strong> Training may take a few moments depending on dataset size and algorithm complexity.
-            </div>
-
-            <div class="d-flex justify-content-between mt-4">
-              <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
-                <i class="bi bi-arrow-left"></i> Previous
-              </button>
-              <button type="submit" class="btn btn-success btn-lg" id="trainButton">
-                <i class="bi bi-play-circle"></i> Start Training
-              </button>
-            </div>
-          </div>
-        </div>
+      <div class="text-center mt-4">
+        <button type="submit" class="btn btn-success btn-lg" id="trainButton">
+          <i class="bi bi-play-circle"></i> Start Training
+        </button>
       </div>
 
-      <!-- Hidden dataset field -->
       <input type="hidden" name="dataset" value="{{ dataset.pk }}">
-      
-      <!-- Hidden task_type field - will be set by JavaScript -->
-      <input type="hidden" name="task_type" id="taskTypeInput" value="">
-      
-      <!-- Hidden fields that will be populated by form -->
-      <input type="hidden" name="validation_size" id="validationSizeInput" value="0.0">
-      <input type="hidden" name="missing_value_strategy" id="missingValueStrategyInput" value="mean">
     </form>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
   <script>
-    let currentStep = 1;
-    let selectedAlgorithm = '';
-    let selectedTarget = '';
-    let taskType = '';
-    
-    // Dataset information passed from Django
-    const datasetId = {{ dataset.pk }};
-
-    // Algorithm definitions with task type compatibility
     const algorithms = {
-      'random_forest': {
-        name: 'Random Forest',
-        icon: 'bi-diagram-3',
-        color: 'primary',
-        description: 'Ensemble learning method',
-        tasks: ['classification', 'regression']
-      },
-      'logistic_regression': {
-        name: 'Logistic Regression',
-        icon: 'bi-bezier2',
-        color: 'warning',
-        description: 'Fast and interpretable',
-        tasks: ['classification']
-      },
-      'svm': {
-        name: 'Support Vector Machine',
-        icon: 'bi-box',
-        color: 'info',
-        description: 'Effective for high dimensions',
-        tasks: ['classification', 'regression']
-      },
-      'neural_network': {
-        name: 'Neural Network',
-        icon: 'bi-grid-3x3',
-        color: 'success',
-        description: 'Deep learning approach',
-        tasks: ['classification', 'regression']
-      },
-      'gradient_boosting': {
-        name: 'Gradient Boosting',
-        icon: 'bi-diagram-2',
-        color: 'danger',
-        description: 'Powerful ensemble',
-        tasks: ['classification', 'regression']
-      },
-      'decision_tree': {
-        name: 'Decision Tree',
-        icon: 'bi-share',
-        color: 'secondary',
-        description: 'Simple and interpretable',
-        tasks: ['classification', 'regression']
-      },
-      'linear_regression': {
-        name: 'Linear Regression',
-        icon: 'bi-graph-up',
-        color: 'info',
-        description: 'Simple regression model',
-        tasks: ['regression']
-      },
-      'ridge_regression': {
-        name: 'Ridge Regression',
-        icon: 'bi-graph-up-arrow',
-        color: 'primary',
-        description: 'Regularized regression',
-        tasks: ['regression']
-      }
+      'random_forest': { name: 'Random Forest', icon: 'bi-diagram-3', color: 'primary', description: 'Ensemble learning method', tasks: ['classification', 'regression'] },
+      'logistic_regression': { name: 'Logistic Regression', icon: 'bi-bezier2', color: 'warning', description: 'Fast and interpretable', tasks: ['classification'] },
+      'linear_regression': { name: 'Linear Regression', icon: 'bi-graph-up', color: 'info', description: 'Simple regression model', tasks: ['regression'] },
+      'ridge_regression': { name: 'Ridge Regression', icon: 'bi-graph-up-arrow', color: 'primary', description: 'Regularized regression', tasks: ['regression'] },
+      'decision_tree': { name: 'Decision Tree', icon: 'bi-share', color: 'secondary', description: 'Simple and interpretable', tasks: ['classification', 'regression'] },
+      'svm': { name: 'Support Vector Machine', icon: 'bi-box', color: 'info', description: 'Effective for high dimensions', tasks: ['classification', 'regression'] },
+      'neural_network': { name: 'Neural Network', icon: 'bi-grid-3x3', color: 'success', description: 'Deep learning approach', tasks: ['classification', 'regression'] },
+      'gradient_boosting': { name: 'Gradient Boosting', icon: 'bi-diagram-2', color: 'danger', description: 'Powerful ensemble', tasks: ['classification', 'regression'] }
     };
-
-    // Target variable selection
-    document.querySelectorAll('.column-tag').forEach(tag => {
-      tag.addEventListener('click', function() {
-        document.querySelectorAll('.column-tag').forEach(t => t.classList.remove('selected'));
-        this.classList.add('selected');
-        selectedTarget = this.dataset.column;
-        document.getElementById('targetVariableInput').value = selectedTarget;
-        document.getElementById('step1Next').disabled = false;
-      });
-    });
-
-    async function analyzeTarget() {
-      if (!selectedTarget) {
-        alert('Please select a target variable');
-        return;
-      }
-
-      // Show loading state
-      const btn = document.getElementById('step1Next');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
-      btn.disabled = true;
-
-      try {
-        // Call backend to analyze target column
-        const response = await fetch(`/analyze-target/${datasetId}/${encodeURIComponent(selectedTarget)}/`);
-        if (!response.ok) throw new Error('Failed to analyze target');
-
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Analysis failed');
-
-        // Show results summary
-        const indicator = document.getElementById('taskTypeIndicator');
-        indicator.classList.remove('d-none');
-        document.getElementById('taskTypeDescription').innerHTML = `
-          The target variable <strong>${selectedTarget}</strong> has <strong>${data.n_unique}</strong> unique values.<br>
-          Please choose whether this should be treated as a <strong>Regression</strong> or <strong>Classification</strong> problem.
-        `;
-
-        // Display user selection buttons
-        const selectorDiv = document.createElement('div');
-        selectorDiv.classList.add('mt-3', 'd-flex', 'gap-3');
-
-        selectorDiv.innerHTML = `
-          <button id="selectRegression" class="btn btn-outline-primary flex-fill">
-            <i class="bi bi-graph-up"></i> Regression
-          </button>
-          <button id="selectClassification" class="btn btn-outline-success flex-fill">
-            <i class="bi bi-diagram-3"></i> Classification
-          </button>
-        `;
-
-        indicator.appendChild(selectorDiv);
-
-        // Set up click handlers
-        document.getElementById('selectRegression').onclick = () => {
-          setTaskType('regression', data.n_unique);
-        };
-
-        document.getElementById('selectClassification').onclick = () => {
-          setTaskType('classification', data.n_unique);
-        };
-
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Error analyzing target variable: ' + error.message);
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
-    }
-
-    function setTaskType(type, n_unique) {
-      taskType = type;
-
-      // Set hidden input
-      document.getElementById('taskTypeInput').value = type;
-
-      // Update indicator UI
-      document.getElementById('taskTypeName').textContent = type.toUpperCase();
-      document.getElementById('taskTypeDescription').innerHTML = 
-        type === 'classification'
-          ? `Classification task selected. Target has <strong>${n_unique}</strong> unique values.
-            Suitable algorithms: Random Forest, Logistic Regression, SVM, etc.`
-          : `Regression task selected. Target has <strong>${n_unique}</strong> unique values.
-            Suitable algorithms: Random Forest, Linear Regression, Ridge Regression, etc.`;
-
-      // Clear selection buttons
-      const selectorDiv = document.querySelector('#taskTypeIndicator div.d-flex');
-      if (selectorDiv) selectorDiv.remove();
-
-      // Populate algorithm list and move on
-      populateAlgorithms(type);
-
-      // Re-enable and reset button
-      const btn = document.getElementById('step1Next');
-      btn.innerHTML = 'Next';
-      btn.disabled = false;
-
-      // Proceed to next step
-      setTimeout(() => nextStep(2), 600);
-    }
 
     function populateAlgorithms(taskType) {
       const grid = document.getElementById('algorithmGrid');
       grid.innerHTML = '';
-      
-      // Filter algorithms based on task type
-      const suitableAlgorithms = Object.entries(algorithms).filter(
-        ([key, algo]) => algo.tasks.includes(taskType)
-      );
-
-      suitableAlgorithms.forEach(([key, algo]) => {
+      const suitable = Object.entries(algorithms).filter(([k,a]) => a.tasks.includes(taskType));
+      suitable.forEach(([k,a]) => {
         const col = document.createElement('div');
-        col.className = 'col-md-4';
+        col.className = 'col-md-4 mb-3';
         col.innerHTML = `
-          <div class="card algorithm-card" data-algorithm="${key}">
+          <div class="card algorithm-card" data-algo="${k}">
             <div class="card-body text-center">
-              <i class="bi ${algo.icon} algorithm-icon text-${algo.color}"></i>
-              <h5>${algo.name}</h5>
-              <p class="small text-muted">${algo.description}</p>
+              <i class="bi ${a.icon} algorithm-icon text-${a.color}"></i>
+              <h5>${a.name}</h5><p class="small text-muted">${a.description}</p>
             </div>
-          </div>
-        `;
+          </div>`;
         grid.appendChild(col);
       });
-
-      // Add click handlers to new algorithm cards
-      document.querySelectorAll('.algorithm-card').forEach(card => {
-        card.addEventListener('click', function() {
-          document.querySelectorAll('.algorithm-card').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.algorithm-card').forEach(card=>{
+        card.addEventListener('click', function(){
+          document.querySelectorAll('.algorithm-card').forEach(c=>c.classList.remove('selected'));
           this.classList.add('selected');
-          selectedAlgorithm = this.dataset.algorithm;
-          document.getElementById('algorithmInput').value = selectedAlgorithm;
-          document.getElementById('step2Next').disabled = false;
+          document.getElementById('algorithmInput').value=this.dataset.algo;
         });
       });
-
-      // Update display
-      document.getElementById('selectedTargetDisplay').textContent = selectedTarget;
-      document.getElementById('taskTypeDisplay').textContent = taskType.toUpperCase();
     }
 
-    function nextStep(step) {
-      // Hide current step
-      document.getElementById(`step${currentStep}`).classList.add('d-none');
-      document.getElementById(`step${currentStep}Indicator`).classList.remove('active');
-      document.getElementById(`step${currentStep}Indicator`).classList.add('completed');
-      
-      // Show next step
-      currentStep = step;
-      document.getElementById(`step${currentStep}`).classList.remove('d-none');
-      document.getElementById(`step${currentStep}Indicator`).classList.add('active');
-      
-      // Update review section if on step 4
-      if (step === 4) {
-        updateReview();
-      }
-      
-      // Scroll to top
-      window.scrollTo(0, 0);
-    }
+    document.querySelectorAll('input[name="task_type"]').forEach(radio=>{
+      radio.addEventListener('change', ()=>populateAlgorithms(radio.value));
+    });
 
-    function prevStep(step) {
-      // Hide current step
-      document.getElementById(`step${currentStep}`).classList.add('d-none');
-      document.getElementById(`step${currentStep}Indicator`).classList.remove('active');
-      
-      // Show previous step
-      currentStep = step;
-      document.getElementById(`step${currentStep}`).classList.remove('d-none');
-      document.getElementById(`step${currentStep}Indicator`).classList.add('active');
-      document.getElementById(`step${step}Indicator`).classList.remove('completed');
-      
-      // Scroll to top
-      window.scrollTo(0, 0);
-    }
-
-    function updateReview() {
-      // Update algorithm name
-      document.getElementById('reviewAlgorithm').textContent = algorithms[selectedAlgorithm]?.name || selectedAlgorithm;
-      
-      // Update target variable
-      document.getElementById('reviewTarget').textContent = selectedTarget;
-      
-      // Update test size
-      const testSize = document.getElementById('id_test_size').value;
-      document.getElementById('reviewTestSize').textContent = (testSize * 100) + '%';
-    }
-
-    // Form submission
-    document.getElementById('trainingForm').addEventListener('submit', function(e) {
-      // Capture values from the form fields and set hidden inputs
-      const validationSize = document.getElementById('id_validation_size');
-      const missingValueStrategy = document.getElementById('id_missing_value_strategy');
-      
-      if (validationSize) {
-        document.getElementById('validationSizeInput').value = validationSize.value || '0.0';
-      }
-      if (missingValueStrategy) {
-        document.getElementById('missingValueStrategyInput').value = missingValueStrategy.value || 'mean';
-      }
-      
-      // Debug: log all form values
-      console.log('Form submission:');
-      console.log('Algorithm:', document.getElementById('algorithmInput').value);
-      console.log('Target:', document.getElementById('targetVariableInput').value);
-      console.log('Dataset:', document.querySelector('input[name="dataset"]').value);
-      console.log('Validation Size:', document.getElementById('validationSizeInput').value);
-      console.log('Missing Value Strategy:', document.getElementById('missingValueStrategyInput').value);
-      
-      // Check if required fields are filled
-      if (!document.getElementById('algorithmInput').value) {
-        e.preventDefault();
-        alert('Algorithm not selected. Please go back and select an algorithm.');
-        return false;
-      }
-      
-      if (!document.getElementById('targetVariableInput').value) {
-        e.preventDefault();
-        alert('Target variable not selected. Please go back and select a target variable.');
-        return false;
-      }
-      
-      const button = document.getElementById('trainButton');
-      button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Training...';
-      button.disabled = true;
+    document.getElementById('trainingForm').addEventListener('submit', e=>{
+      const target=document.getElementById('targetVariable').value;
+      const features=Array.from(document.querySelectorAll('.feature-checkbox:checked')).map(f=>f.value);
+      const algo=document.getElementById('algorithmInput').value;
+      if(!target){alert('Select a target variable');e.preventDefault();return;}
+      if(features.length===0){alert('Select at least one feature');e.preventDefault();return;}
+      if(features.includes(target)){alert('Target cannot be used as a feature');e.preventDefault();return;}
+      if(!algo){alert('Select an algorithm');e.preventDefault();return;}
     });
   </script>
 </body>
