@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Model Testing Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="bi bi-shield-check text-primary"></i>
+                Model Testing Dashboard
+            </h1>
+            <p class="lead text-muted">Automated testing for all ML models in the registry</p>
+        </div>
+    </div>
+
+    <!-- Test Controls -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-play-circle"></i> Run Tests
+                    </h5>
+                    <form method="post" action="{% url 'run_tests' %}" id="testForm">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <button type="submit" name="test_type" value="all" 
+                                        class="btn btn-primary w-100 btn-lg">
+                                    <i class="bi bi-rocket-takeoff"></i>
+                                    Run All Tests
+                                    <span class="badge bg-light text-dark ms-2">{{ total_models }}</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" name="test_type" value="classification" 
+                                        class="btn btn-info w-100 btn-lg">
+                                    <i class="bi bi-diagram-3"></i>
+                                    Classification
+                                    <span class="badge bg-light text-dark ms-2">{{ classification_count }}</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" name="test_type" value="regression" 
+                                        class="btn btn-success w-100 btn-lg">
+                                    <i class="bi bi-graph-up"></i>
+                                    Regression
+                                    <span class="badge bg-light text-dark ms-2">{{ regression_count }}</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-danger w-100 btn-lg"
+                                        onclick="if(confirm('Delete all test results?')) document.getElementById('cleanupForm').submit();">
+                                    <i class="bi bi-trash"></i>
+                                    Cleanup
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <form method="post" action="{% url 'cleanup_tests' %}" id="cleanupForm" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest Test Results -->
+    {% if latest_run %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i>
+                        Latest Test Run - {{ latest_run.timestamp|date:"M d, Y H:i" }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h6 class="text-muted mb-1">Status</h6>
+                                <h4>
+                                    {% if latest_run.status == 'completed' %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Completed
+                                        </span>
+                                    {% elif latest_run.status == 'running' %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-hourglass-split"></i> Running
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle"></i> Failed
+                                        </span>
+                                    {% endif %}
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-light rounded">
+                                <h6 class="text-muted mb-1">Total Tests</h6>
+                                <h4>{{ latest_run.total_tests }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                <h6 class="text-muted mb-1">Passed</h6>
+                                <h4 class="text-success">
+                                    <i class="bi bi-check-circle-fill"></i> {{ latest_run.passed }}
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 {% if latest_run.failed > 0 %}bg-danger bg-opacity-10{% else %}bg-light{% endif %} rounded">
+                                <h6 class="text-muted mb-1">Failed</h6>
+                                <h4 {% if latest_run.failed > 0 %}class="text-danger"{% endif %}>
+                                    <i class="bi bi-x-circle-fill"></i> {{ latest_run.failed }}
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Pass Rate</span>
+                            <span class="fw-bold">{{ latest_run.pass_rate|floatformat:1 }}%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ latest_run.pass_rate }}%"
+                                 aria-valuenow="{{ latest_run.pass_rate }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ latest_run.passed }} passed
+                            </div>
+                            {% if latest_run.failed > 0 %}
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                 style="width: {{ latest_failed_pct|floatformat:1 }}%">
+                                {{ latest_run.failed }} failed
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if latest_run.duration %}
+                    <p class="mb-0 text-muted">
+                        <i class="bi bi-stopwatch"></i>
+                        Duration: {{ latest_run.duration|floatformat:2 }}s
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Results -->
+    <div class="row">
+        <!-- Classification Results -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-diagram-3"></i>
+                        Classification Models
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Status</th>
+                                    <th>Accuracy</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in latest_run.results.all %}
+                                    {% if result.task_type == 'classification' %}
+                                    <tr class="{% if result.status == 'pass' %}table-success{% elif result.status == 'error' %}table-danger{% endif %}">
+                                        <td>
+                                            <strong>{{ result.model_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ result.algorithm }}</small>
+                                        </td>
+                                        <td>
+                                            {% if result.status == 'pass' %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Pass
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle"></i> Error
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if result.status == 'pass' %}
+                                                <strong>{{ result.metrics.accuracy|floatformat:3 }}</strong>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if result.train_time %}
+                                                <small>{{ result.train_time|floatformat:2 }}s</small>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if result.status == 'error' %}
+                                    <tr class="table-danger">
+                                        <td colspan="4">
+                                            <small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                {{ result.error_message|truncatewords:20 }}
+                                            </small>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Regression Results -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up"></i>
+                        Regression Models
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Status</th>
+                                    <th>R² Score</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in latest_run.results.all %}
+                                    {% if result.task_type == 'regression' %}
+                                    <tr class="{% if result.status == 'pass' %}table-success{% elif result.status == 'error' %}table-danger{% endif %}">
+                                        <td>
+                                            <strong>{{ result.model_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ result.algorithm }}</small>
+                                        </td>
+                                        <td>
+                                            {% if result.status == 'pass' %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Pass
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle"></i> Error
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if result.status == 'pass' %}
+                                                <strong>{{ result.metrics.r2_score|floatformat:3 }}</strong>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if result.train_time %}
+                                                <small>{{ result.train_time|floatformat:2 }}s</small>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if result.status == 'error' %}
+                                    <tr class="table-danger">
+                                        <td colspan="4">
+                                            <small class="text-danger">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                {{ result.error_message|truncatewords:20 }}
+                                            </small>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Tests Yet -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-clipboard-data display-1 text-muted mb-3"></i>
+                    <h3 class="text-muted">No Tests Run Yet</h3>
+                    <p class="text-muted">Click "Run All Tests" above to start testing your models</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Test History -->
+    {% if test_runs %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history"></i>
+                        Test History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Run #</th>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Results</th>
+                                    <th>Pass Rate</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for run in test_runs %}
+                                <tr>
+                                    <td><strong>#{{ run.id }}</strong></td>
+                                    <td>{{ run.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ run.get_test_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if run.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif run.status == 'running' %}
+                                            <span class="badge bg-warning">Running</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-success">{{ run.passed }} passed</span> / 
+                                        <span class="text-danger">{{ run.failed }} failed</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 100px; height: 20px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: {{ run.pass_rate }}%">
+                                                {{ run.pass_rate|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if run.duration %}
+                                            {{ run.duration|floatformat:2 }}s
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.btn-lg {
+    padding: 15px;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+</style>
+
+<script>
+// Add loading state to test form
+document.getElementById('testForm').addEventListener('submit', function(e) {
+    const buttons = this.querySelectorAll('button[type="submit"]');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split spinner-border spinner-border-sm"></i> Running...';
+    });
+});
+</script>
+{% endblock %}
