@@ -27,7 +27,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, 
     f1_score, confusion_matrix, classification_report,
-    mean_squared_error, r2_score, mean_absolute_error
+    mean_squared_error, r2_score, mean_absolute_error, roc_curve, auc
 )
 import matplotlib
 matplotlib.use('Agg')
@@ -191,7 +191,7 @@ class ModelRegistry:
             'class': RandomForestClassifier,
             'name': 'Random Forest',
             'family': 'bagging',
-            'description': 'Ensemble of decision trees',
+            'description': 'Ensemble of decision trees for classification',
             'default_params': {
                 'n_estimators': 100,
                 'random_state': 42,
@@ -277,7 +277,7 @@ class ModelRegistry:
             'default_params': {},
             'tunable_params': ['fit_intercept', 'normalize']
         },
-        'ridge': {
+        'ridge_regression': {
             'class': Ridge,
             'name': 'Ridge Regression',
             'family': 'linear',
@@ -288,7 +288,7 @@ class ModelRegistry:
             },
             'tunable_params': ['alpha', 'solver']
         },
-        'lasso': {
+        'lasso_regression': {
             'class': Lasso,
             'name': 'Lasso Regression',
             'family': 'linear',
@@ -318,7 +318,7 @@ class ModelRegistry:
             'class': RandomForestRegressor,
             'name': 'Random Forest',
             'family': 'bagging',
-            'description': 'Ensemble of decision trees',
+            'description': 'Ensemble of decision trees for regression',
             'default_params': {
                 'n_estimators': 100,
                 'random_state': 42,
@@ -343,7 +343,7 @@ class ModelRegistry:
             'class': GradientBoostingRegressor,
             'name': 'Gradient Boosting',
             'family': 'boosting',
-            'description': 'Gradient boosted decision trees',
+            'description': 'Gradient boosted decision trees regressor',
             'default_params': {
                 'n_estimators': 100,
                 'random_state': 42,
@@ -391,7 +391,19 @@ class ModelRegistry:
             'tunable_params': ['hidden_layer_sizes', 'learning_rate_init', 'alpha']
         },
     }
-    
+
+    # Annotate models with explicit task metadata so consumers (UI / logs)
+    # can read supported tasks directly from the registry entry. This
+    # avoids deriving task information from which dict the entry lives in
+    # and makes client-side rendering simpler.
+    for _k, _v in CLASSIFICATION_MODELS.items():
+        _v.setdefault('tasks', ['classification'])
+        _v.setdefault('task_type', 'classification')
+
+    for _k, _v in REGRESSION_MODELS.items():
+        _v.setdefault('tasks', ['regression'])
+        _v.setdefault('task_type', 'regression')
+
     @classmethod
     def get_model(cls, algorithm, task_type='classification'):
         """Get model class and metadata"""
@@ -454,6 +466,8 @@ class ModelTrainer:
         self.label_encoders = {}
         self.preprocessing_config = PreprocessingConfig()
         self.validator = DataValidator()
+        # Detected task_type after inspecting the target column (set in load_and_preprocess_data)
+        self.detected_task_type = None
         
     def load_and_preprocess_data(self):
         """Load dataset and perform preprocessing"""
@@ -484,18 +498,32 @@ class ModelTrainer:
         # Validate target
         target_validation = self.validator.check_target_column(df, self.target_column)
         print(f"Task type detected: {target_validation['task_type']}")
+        # store detected task type so trainer can pick the correct model family
+        n_unique = df[self.target_column].nunique()
+        if pd.api.types.is_numeric_dtype(df[self.target_column]) and n_unique > 10:
+            self.detected_task_type = 'regression'
+        else:
+            self.detected_task_type = 'classification'
+
         
         # Store original dtypes
+        # If the caller did not explicitly set a task_type, prefer the detected one
+        # Keep original self.task_type so callers that force a type still have that value
         self.preprocessing_config.update(
             column_dtypes={col: str(dtype) for col, dtype in df.dtypes.items()},
             target_column=self.target_column,
-            task_type=self.task_type
+            task_type=self.detected_task_type or self.task_type
         )
         
         # Separate features and target
         X = df.drop(columns=[self.target_column])
-        y = df[self.target_column]
-        
+        # Always ensure it's a DataFrame
+        if isinstance(X, pd.Series):
+            X = X.to_frame()
+
+
+        y = df[self.target_column].values
+
         # Identify column types
         categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
         numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
@@ -582,10 +610,13 @@ class ModelTrainer:
         if self.X_train is None:
             raise ValueError("Data not loaded. Call load_and_preprocess_data() first")
         
+        # Decide effective task type: prefer detected if available, otherwise use configured
+        effective_task = self.detected_task_type or self.task_type
+
         # Get model from registry
-        model_info = ModelRegistry.get_model(self.algorithm, self.task_type)
+        model_info = ModelRegistry.get_model(self.algorithm, effective_task)
         if not model_info:
-            raise ValueError(f"Unknown algorithm: {self.algorithm} for task: {self.task_type}")
+            raise ValueError(f"Unknown algorithm: {self.algorithm} for task: {effective_task}")
         
         # Merge default params with custom params
         params = {**model_info['default_params'], **self.algorithm_params}
@@ -604,10 +635,13 @@ class ModelTrainer:
         """Evaluate with consistent metrics for both classification and regression"""
         if self.model is None:
             raise ValueError("Model not trained")
-        
+
+        # use detected task if available
+        effective_task = self.detected_task_type or self.task_type
+
         y_pred = self.model.predict(self.X_test)
-        
-        if self.task_type == 'classification':
+
+        if effective_task == 'classification':
             metrics = {
                 'accuracy': accuracy_score(self.y_test, y_pred) * 100,
                 'precision': precision_score(self.y_test, y_pred, average='weighted', zero_division=0),
@@ -631,13 +665,15 @@ class ModelTrainer:
         if self.model is None:
             raise ValueError("Model not trained")
         
+        effective_task = self.task_type or self.detected_task_type
+
         model_data = {
             'model': self.model,
             'scaler': self.scaler,
             'label_encoders': self.label_encoders,
             'feature_names': self.feature_names,
             'algorithm': self.algorithm,
-            'task_type': self.task_type,
+            'task_type': effective_task,
             'preprocessing_config': self.preprocessing_config.to_dict(),
         }
         
@@ -649,27 +685,85 @@ class ModelTrainer:
         
         return output_path
     
-    def generate_confusion_matrix_plot(self):
-        """Generate confusion matrix for classification"""
-        if self.task_type != 'classification':
+    def generate_confusion_matrix_plot(self, max_classes=10):
+        """Generate simplified confusion matrix for classification"""
+        effective_task = self.detected_task_type or self.task_type
+        if effective_task != 'classification':
             return None
-            
-        _, cm, _ = self.evaluate_model()
         
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                    xticklabels=np.unique(self.y_test),
-                    yticklabels=np.unique(self.y_test))
+        _, cm, y_test = self.evaluate_model()
+
+        labels = np.unique(y_test)
+        
+        # Limit the number of classes displayed
+        if len(labels) > max_classes:
+            labels = labels[:max_classes]
+            cm = cm[:max_classes, :max_classes]
+        
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                    xticklabels=labels,
+                    yticklabels=labels,
+                    cbar=False)  # remove colorbar to simplify
         plt.title('Confusion Matrix')
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=0)
+        plt.tight_layout()
         
         buffer = BytesIO()
-        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
         buffer.seek(0)
         plt.close()
         
         return ContentFile(buffer.read(), name='confusion_matrix.png')
+
+    
+    def generate_roc_curve_plot(self):
+        """Generate ROC curve for classification models with probability output"""
+        effective_task = self.task_type
+        if effective_task != 'classification':
+            return None
+
+        # Ensure model supports probability estimates
+        if not hasattr(self.model, "predict_proba"):
+            print("Model does not support probability estimates for ROC curve.")
+            return None
+
+        y_prob = self.model.predict_proba(self.X_test)
+        y_true = self.y_test
+
+        plt.figure(figsize=(8, 6))
+        if y_prob.shape[1] == 2:
+            # Binary classification
+            fpr, tpr, _ = roc_curve(y_true, y_prob[:, 1])
+            roc_auc = auc(fpr, tpr)
+            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
+        else:
+            # Multiclass — average ROC
+            max_classes_to_plot = 10
+            for i in range(min(y_prob.shape[1], max_classes_to_plot)):
+                fpr, tpr, _ = roc_curve((y_true == i).astype(int), y_prob[:, i])
+                roc_auc = auc(fpr, tpr)
+                plt.plot(fpr, tpr, lw=2, label=f'Class {i} (AUC = {roc_auc:.2f})')
+
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate', fontsize=12)
+        plt.ylabel('True Positive Rate', fontsize=12)
+        plt.title('Receiver Operating Characteristic (ROC) Curve', fontsize=14, weight='bold')
+        plt.legend(loc="lower right", fontsize=8, ncol=2)
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
+        buffer.seek(0)
+        plt.close()
+
+        return ContentFile(buffer.read(), name='roc_curve.png')
     
     def generate_feature_importance_plot(self):
         """Generate feature importance plot"""

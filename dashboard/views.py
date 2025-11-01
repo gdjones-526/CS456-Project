@@ -13,6 +13,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
+from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def upload_file(request):
@@ -46,17 +47,47 @@ def upload_file(request):
     }
     return render(request, 'upload_file.html', context)
 
+@csrf_exempt
+def analyze_selection(request, dataset_id):
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+            features = body.get("features", [])
+            target = body.get("target")
 
+            if not features or not target:
+                return JsonResponse({"success": False, "error": "Missing features or target variable."})
+
+            # Load dataset (assuming you have a Dataset model)
+            dataset = Dataset.objects.get(pk=dataset_id)
+            df = pd.read_csv(dataset.file.path)
+
+            if target not in df.columns or any(f not in df.columns for f in features):
+                return JsonResponse({"success": False, "error": "Invalid column selection."})
+
+            # Basic target type detection
+            task_type = "classification" if df[target].nunique() < 10 else "regression"
+
+            return JsonResponse({
+                "success": True,
+                "task_type": task_type,
+                "n_features": len(features)
+            })
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+        
 @login_required
 def dashboard(request):
-    """Main dashboard view with file upload and management"""
+    """Main dashboard view with file upload, management, and visualizations"""
     files = UploadedFile.objects.filter(user=request.user).order_by('-uploaded_at')
-    trained_models = AIModel.objects.filter(user=request.user).prefetch_related('metrics')
+    trained_models = AIModel.objects.filter(user=request.user).prefetch_related('metrics', 'figures')
     
-    # Get latest metric for each model
+    # Attach latest metric and figures to each model
     for model in trained_models:
         model.latest_metric = model.metrics.first()
-    
+        model.visualizations = model.figures.all()  # e.g., ROC, Confusion Matrix images
+
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -65,13 +96,12 @@ def dashboard(request):
             uploaded_file.original_name = request.FILES['file'].name
             uploaded_file.save()
             
-            # Process the file to validate it
             try:
                 process_uploaded_file(uploaded_file)
                 messages.success(request, f'File "{uploaded_file.original_name}" uploaded successfully!')
                 return redirect('dashboard')
             except Exception as e:
-                uploaded_file.delete()  # Remove file if processing fails
+                uploaded_file.delete()
                 messages.error(request, f'Error processing file: {str(e)}')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -84,6 +114,7 @@ def dashboard(request):
         'trained_models': trained_models,
     }
     return render(request, 'application/dashboard.html', context)
+
 
 
 @login_required
@@ -212,7 +243,6 @@ def load_dataframe(uploaded_file):
 def train_model(request, dataset_id, algorithm=None):
     """Train a new model on a dataset"""
     dataset = get_object_or_404(UploadedFile, pk=dataset_id, user=request.user)
-    
     if not dataset.processed:
         messages.error(request, 'Dataset is not yet processed. Please wait.')
         return redirect('application/file_detail', pk=dataset_id)
@@ -225,8 +255,42 @@ def train_model(request, dataset_id, algorithm=None):
         messages.error(request, f'Error loading dataset: {str(e)}')
         return redirect('file_detail', pk=dataset_id)
     
+    # ---------------
+    classification_algorithms = {}
+    regression_algorithms = {}
+    
+    # Build classification algorithms dict
+    for key, model_info in ModelRegistry.CLASSIFICATION_MODELS.items():
+        classification_algorithms[key] = {
+            'name': model_info['name'],
+            'description': model_info['description'],
+            'family': model_info['family'],
+            'task_type': 'classification'
+        }
+    
+    # Build regression algorithms dict
+    for key, model_info in ModelRegistry.REGRESSION_MODELS.items():
+        regression_algorithms[key] = {
+            'name': model_info['name'],
+            'description': model_info['description'],
+            'family': model_info['family'],
+            'task_type': 'regression'
+        }
+    #  ---------------
+
     if request.method == 'POST':
+
+        print("POST data:", request.POST)
+
         form = ModelTrainingForm(user=request.user, data=request.POST)
+
+        if not form.is_valid():
+            print("Form errors:", form.errors)
+            for field, errors in form.errors.items():
+                field_label = form.fields.get(field).label if form.fields.get(field) else field
+                for error in errors:
+                    messages.error(request, f"{field_label}: {error}")
+        
         if form.is_valid():
             # Create model record
             model = form.save(commit=False)
@@ -235,24 +299,34 @@ def train_model(request, dataset_id, algorithm=None):
             model.framework = 'scikit-learn'
             model.status = 'training'
             
+            # Parse algorithm and task type from the selection
+            # task_type, algorithm = form.cleaned_data['algorithm'].split('|')
+            task_type = form.cleaned_data['task_type']
+            algorithm = form.cleaned_data['algorithm']
+            
             # Store training parameters
             model.parameters = {
-                'algorithm': form.cleaned_data['algorithm'],
+                'algorithm': algorithm,
                 'test_size': form.cleaned_data['test_size'],
                 'random_state': form.cleaned_data['random_state'],
+                'task_type': task_type,
             }
             model.save()
             
-            # Start training (in production, use Celery for async)
             try:
+                # FIX: Use .get() to provide default values
+                test_size_val = form.cleaned_data.get('test_size', 0.2)
+                random_state_val = form.cleaned_data.get('random_state', 42)
+
                 # Initialize trainer
                 trainer = ModelTrainer(
                     dataset_path=dataset.file.path,
                     target_column=model.target_variable,
-                    algorithm=form.cleaned_data['algorithm'],
-                    test_size=form.cleaned_data['test_size'],
+                    algorithm=algorithm,
+                    test_size=test_size_val,
+                    task_type=task_type,
                     validation_size=form.cleaned_data.get('validation_size', 0.0),
-                    random_state=form.cleaned_data['random_state'],
+                    random_state=random_state_val,
                     missing_value_strategy=form.cleaned_data.get('missing_value_strategy', 'mean'),
                 )
                 
@@ -264,16 +338,32 @@ def train_model(request, dataset_id, algorithm=None):
                 
                 # Evaluate model
                 metrics, cm, predictions = trainer.evaluate_model()
-                
-                # Save metrics
-                PerformanceMetric.objects.create(
-                    model=model,
-                    accuracy=metrics['accuracy'],
-                    precision=metrics['precision'],
-                    recall=metrics['recall'],
-                    f1_score=metrics['f1_score'],
-                )
-                
+
+                #  Save metrics - HANDLE BOTH CLASSIFICATION AND REGRESSION
+                if form.cleaned_data['task_type'] == 'classification':
+                    PerformanceMetric.objects.create(
+                        model=model,
+                        accuracy=metrics.get('accuracy'),
+                        precision=metrics.get('precision'),
+                        recall=metrics.get('recall'),
+                        f1_score=metrics.get('f1_score'),
+                        loss=metrics.get('loss'),
+                    )
+                else:  # regression
+                    PerformanceMetric.objects.create(
+                        model=model,
+                        mse=metrics.get('mse'),
+                        rmse=metrics.get('rmse'),
+                        mae=metrics.get('mae'),
+                        r2_score=metrics.get('r2_score'),
+                        # Optional: use MSE as loss for consistency
+                        loss=metrics.get('mse'),
+                        accuracy=None,
+                        precision=None,
+                        recall=None,
+                        f1_score=None,
+                    )
+
                 # Save model file
                 model_filename = f"model_{model.id}_{form.cleaned_data['algorithm']}.joblib"
                 model_path = os.path.join(settings.MEDIA_ROOT, 'trained_models', model_filename)
@@ -290,6 +380,16 @@ def train_model(request, dataset_id, algorithm=None):
                         description='Confusion Matrix'
                     )
                     figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+
+                # Generate and save ROC curve (classification only)
+                roc_plot = trainer.generate_roc_curve_plot()
+                if roc_plot:
+                    figure = Figure.objects.create(
+                        model=model,
+                        description='ROC Curve'
+                    )
+                    figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
+
                 
                 # Generate and save feature importance (if applicable)
                 fi_plot = trainer.generate_feature_importance_plot()
@@ -304,7 +404,7 @@ def train_model(request, dataset_id, algorithm=None):
                 model.status = 'completed'
                 model.save()
                 
-                messages.success(request, f'Model "{model.name}" trained successfully with {metrics["accuracy"]:.2f}% accuracy!')
+                messages.success(request, f'Model "{model.name}" trained successfully with ') #{metrics["accuracy"]:.2f}% accuracy!
                 return redirect('model_detail', pk=model.id)
                 
             except Exception as e:
@@ -324,6 +424,9 @@ def train_model(request, dataset_id, algorithm=None):
         'form': form,
         'dataset': dataset,
         'columns': columns,
+        'dataset': dataset,
+        'classification_algorithms_json': json.dumps(classification_algorithms),
+        'regression_algorithms_json': json.dumps(regression_algorithms),
     }
     return render(request, 'application/train_model.html', context)
 
@@ -356,6 +459,19 @@ def model_list(request):
         'models': models,
     }
     return render(request, 'application/model_list.html', context)
+
+def delete_model(request, model_id):
+    if request.method == 'POST':
+        model = get_object_or_404(AIModel, id=model_id)
+
+        # Optional: ensure only the model’s owner can delete it
+        if model.user != request.user:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+        model.delete()
+        return JsonResponse({'message': 'Model deleted successfully'}, status=200)
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 # Authentication Views
 def signup_view(request):

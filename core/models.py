@@ -34,20 +34,29 @@ class AIModel(models.Model):
     def __str__(self):
         return f"{self.name} ({self.user.username})"
 
-
 class PerformanceMetric(models.Model):
-    model = models.ForeignKey(AIModel, on_delete=models.CASCADE, related_name='metrics')
+    model = models.ForeignKey('AIModel', on_delete=models.CASCADE, related_name='metrics')
+    
+    # Classification metrics
     accuracy = models.FloatField(blank=True, null=True)
     precision = models.FloatField(blank=True, null=True)
     recall = models.FloatField(blank=True, null=True)
     f1_score = models.FloatField(blank=True, null=True)
+    
     loss = models.FloatField(blank=True, null=True)
+
+    # Regression metrics
+    mse = models.FloatField(blank=True, null=True)
+    rmse = models.FloatField(blank=True, null=True)
+    mae = models.FloatField(blank=True, null=True)
+    r2_score = models.FloatField(blank=True, null=True)
+    
+    # Common
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Metrics for {self.model.name}"
-
-
+    
 class Prediction(models.Model):
     model = models.ForeignKey(AIModel, on_delete=models.CASCADE, related_name='predictions')
     input_data = models.JSONField()
@@ -73,6 +82,8 @@ class Experiment(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
 
     def __str__(self):
         return f"Experiment: {self.name}"
