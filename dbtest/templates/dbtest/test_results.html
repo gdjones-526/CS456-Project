@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Test Results</h2>
+            <p class="text-muted">
+                Run #{{ test_run.id }} - {{ test_run.test_type|title }}
+                <span class="badge bg-{{ test_run.status|yesno:'success,warning,danger' }}">
+                    {{ test_run.status|title }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Test Run Info</h6>
+                            <p>
+                                Status: <span class="badge bg-{{ test_run.status|yesno:'success,warning,danger' }}">
+                                    {{ test_run.status|title }}
+                                </span><br>
+                                Type: {{ test_run.test_type|title }}<br>
+                                Time: {{ test_run.timestamp|date:"Y-m-d H:i:s" }}<br>
+                                Duration: {{ test_run.duration|floatformat:2 }}s
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Results</h6>
+                            <p>
+                                Passed: {{ test_run.passed }}<br>
+                                Failed: {{ test_run.failed }}<br>
+                                Errors: {{ test_run.errors }}<br>
+                                Pass Rate: {{ test_run.pass_rate_display }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classification Results -->
+    {% if classification_results %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Classification Models</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in classification_results %}
+                                <tr>
+                                    <td>{{ result.test_case }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ result.status|yesno:'success,warning,danger' }}">
+                                            {{ result.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ result.duration|floatformat:2 }}s</td>
+                                    <td>
+                                        {% if result.error_message %}
+                                            {{ result.error_message }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Regression Results -->
+    {% if regression_results %}
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Regression Models</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in regression_results %}
+                                <tr>
+                                    <td>{{ result.test_case }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ result.status|yesno:'success,warning,danger' }}">
+                                            {{ result.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ result.duration|floatformat:2 }}s</td>
+                                    <td>
+                                        {% if result.error_message %}
+                                            {{ result.error_message }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mt-4">
+        <div class="col">
+            <a href="{% url 'test_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

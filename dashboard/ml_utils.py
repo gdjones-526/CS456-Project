@@ -191,7 +191,7 @@ class ModelRegistry:
             'class': RandomForestClassifier,
             'name': 'Random Forest',
             'family': 'bagging',
-            'description': 'Ensemble of decision trees',
+            'description': 'Ensemble of decision trees for classification',
             'default_params': {
                 'n_estimators': 100,
                 'random_state': 42,
@@ -277,7 +277,7 @@ class ModelRegistry:
             'default_params': {},
             'tunable_params': ['fit_intercept', 'normalize']
         },
-        'ridge': {
+        'ridge_regression': {
             'class': Ridge,
             'name': 'Ridge Regression',
             'family': 'linear',
@@ -288,7 +288,7 @@ class ModelRegistry:
             },
             'tunable_params': ['alpha', 'solver']
         },
-        'lasso': {
+        'lasso_regression': {
             'class': Lasso,
             'name': 'Lasso Regression',
             'family': 'linear',
@@ -318,7 +318,7 @@ class ModelRegistry:
             'class': RandomForestRegressor,
             'name': 'Random Forest',
             'family': 'bagging',
-            'description': 'Ensemble of decision trees',
+            'description': 'Ensemble of decision trees for regression',
             'default_params': {
                 'n_estimators': 100,
                 'random_state': 42,
@@ -343,7 +343,7 @@ class ModelRegistry:
             'class': GradientBoostingRegressor,
             'name': 'Gradient Boosting',
             'family': 'boosting',
-            'description': 'Gradient boosted decision trees',
+            'description': 'Gradient boosted decision trees regressor',
             'default_params': {
                 'n_estimators': 100,
                 'random_state': 42,
@@ -391,7 +391,19 @@ class ModelRegistry:
             'tunable_params': ['hidden_layer_sizes', 'learning_rate_init', 'alpha']
         },
     }
-    
+
+    # Annotate models with explicit task metadata so consumers (UI / logs)
+    # can read supported tasks directly from the registry entry. This
+    # avoids deriving task information from which dict the entry lives in
+    # and makes client-side rendering simpler.
+    for _k, _v in CLASSIFICATION_MODELS.items():
+        _v.setdefault('tasks', ['classification'])
+        _v.setdefault('task_type', 'classification')
+
+    for _k, _v in REGRESSION_MODELS.items():
+        _v.setdefault('tasks', ['regression'])
+        _v.setdefault('task_type', 'regression')
+
     @classmethod
     def get_model(cls, algorithm, task_type='classification'):
         """Get model class and metadata"""

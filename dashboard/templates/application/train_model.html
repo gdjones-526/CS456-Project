@@ -16,6 +16,22 @@
     .algorithm-card.selected { border-color: #0d6efd; background-color: #e7f3ff; }
     .algorithm-icon { font-size: 3rem; margin-bottom: 1rem; }
     .section-title { color: #0d6efd; margin-bottom: 1rem; border-bottom: 2px solid #e9ecef; padding-bottom: 0.5rem; }
+    .algorithm-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .algorithm-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .algorithm-card.active {
+        border: 2px solid #0d6efd;
+        background-color: #f8f9fa;
+        box-shadow: 0 4px 12px rgba(13,110,253,0.3);
+}
   </style>
 </head>
 <body>
@@ -155,56 +171,85 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const algorithms = {
-      'random_forest': { name: 'Random Forest', icon: 'bi-diagram-3', color: 'primary', description: 'Ensemble learning method', tasks: ['classification', 'regression'] },
-      'logistic_regression': { name: 'Logistic Regression', icon: 'bi-bezier2', color: 'warning', description: 'Fast and interpretable', tasks: ['classification'] },
-      'linear_regression': { name: 'Linear Regression', icon: 'bi-graph-up', color: 'info', description: 'Simple regression model', tasks: ['regression'] },
-      'ridge_regression': { name: 'Ridge Regression', icon: 'bi-graph-up-arrow', color: 'primary', description: 'Regularized regression', tasks: ['regression'] },
-      'decision_tree': { name: 'Decision Tree', icon: 'bi-share', color: 'secondary', description: 'Simple and interpretable', tasks: ['classification', 'regression'] },
-      'svm': { name: 'Support Vector Machine', icon: 'bi-box', color: 'info', description: 'Effective for high dimensions', tasks: ['classification', 'regression'] },
-      'neural_network': { name: 'Neural Network', icon: 'bi-grid-3x3', color: 'success', description: 'Deep learning approach', tasks: ['classification', 'regression'] },
-      'gradient_boosting': { name: 'Gradient Boosting', icon: 'bi-diagram-2', color: 'danger', description: 'Powerful ensemble', tasks: ['classification', 'regression'] }
+<script>
+    // Get separate algorithm lists from Django context
+    const classificationAlgorithms = {{ classification_algorithms_json|safe }};
+    const regressionAlgorithms = {{ regression_algorithms_json|safe }};
+    
+    // Add icon and color mappings (visual preferences)
+    const algorithmStyles = {
+        'random_forest': { icon: 'bi-diagram-3', color: 'primary' },
+        'logistic_regression': { icon: 'bi-bezier2', color: 'warning' },
+        'linear_regression': { icon: 'bi-graph-up', color: 'info' },
+        'ridge_regression': { icon: 'bi-graph-up-arrow', color: 'primary' },
+        'lasso_regression': { icon: 'bi-graph-down-arrow', color: 'info' },
+        'decision_tree': { icon: 'bi-share', color: 'secondary' },
+        'svm': { icon: 'bi-box', color: 'info' },
+        'neural_network': { icon: 'bi-grid-3x3', color: 'success' },
+        'gradient_boosting': { icon: 'bi-diagram-2', color: 'danger' },
+        'adaboost': { icon: 'bi-lightning', color: 'warning' },
+        'bagging': { icon: 'bi-collection', color: 'primary' }
     };
 
     function populateAlgorithms(taskType) {
-      const grid = document.getElementById('algorithmGrid');
-      grid.innerHTML = '';
-      const suitable = Object.entries(algorithms).filter(([k,a]) => a.tasks.includes(taskType));
-      suitable.forEach(([k,a]) => {
-        const col = document.createElement('div');
-        col.className = 'col-md-4 mb-3';
-        col.innerHTML = `
-          <div class="card algorithm-card" data-algo="${k}">
-            <div class="card-body text-center">
-              <i class="bi ${a.icon} algorithm-icon text-${a.color}"></i>
-              <h5>${a.name}</h5><p class="small text-muted">${a.description}</p>
-            </div>
-          </div>`;
-        grid.appendChild(col);
-      });
-      document.querySelectorAll('.algorithm-card').forEach(card=>{
-        card.addEventListener('click', function(){
-          document.querySelectorAll('.algorithm-card').forEach(c=>c.classList.remove('selected'));
-          this.classList.add('selected');
-          document.getElementById('algorithmInput').value=this.dataset.algo;
+        const grid = document.getElementById('algorithmGrid');
+        grid.innerHTML = '';
+        
+        // Select the appropriate algorithm list based on task type
+        const algorithms = taskType === 'classification' ? classificationAlgorithms : regressionAlgorithms;
+
+        Object.entries(algorithms).forEach(([key, algo]) => {
+            const style = algorithmStyles[key] || { icon: 'bi-cpu', color: 'secondary' };
+            const col = document.createElement('div');
+            col.className = 'col-md-4';
+            col.innerHTML = `
+                <div class="card algorithm-card" data-algorithm="${key}">
+                    <div class="card-body text-center">
+                        <i class="bi ${style.icon} text-${style.color} fs-1 mb-3"></i>
+                        <h5>${algo.name}</h5>
+                        <p class="text-muted small">${algo.description}</p>
+                        <span class="badge bg-${style.color}">${algo.family}</span>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(col);
         });
-      });
+        
+        // Add click event listeners to all algorithm cards
+        document.querySelectorAll('.algorithm-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Remove active class from all cards
+                document.querySelectorAll('.algorithm-card').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked card
+                this.classList.add('active');
+                
+                // Set the algorithm value in the hidden input
+                const algorithmValue = this.dataset.algorithm;
+                document.getElementById('algorithmInput').value = algorithmValue;
+                
+                console.log('Selected algorithm:', algorithmValue);
+            });
+        });
+        
+        if (Object.keys(algorithms).length === 0) {
+            grid.innerHTML = '<div class="col-12"><p class="text-muted text-center">No algorithms available for this task type.</p></div>';
+        }
     }
 
-    document.querySelectorAll('input[name="task_type"]').forEach(radio=>{
-      radio.addEventListener('change', ()=>populateAlgorithms(radio.value));
+    document.querySelectorAll('input[name="task_type"]').forEach(radio => {
+        radio.addEventListener('change', () => populateAlgorithms(radio.value));
     });
 
-    document.getElementById('trainingForm').addEventListener('submit', e=>{
-      const target=document.getElementById('targetVariable').value;
-      const features=Array.from(document.querySelectorAll('.feature-checkbox:checked')).map(f=>f.value);
-      const algo=document.getElementById('algorithmInput').value;
-      if(!target){alert('Select a target variable');e.preventDefault();return;}
-      if(features.length===0){alert('Select at least one feature');e.preventDefault();return;}
-      if(features.includes(target)){alert('Target cannot be used as a feature');e.preventDefault();return;}
-      if(!algo){alert('Select an algorithm');e.preventDefault();return;}
+    document.getElementById('trainingForm').addEventListener('submit', e => {
+        const target = document.getElementById('targetVariable').value;
+        const features = Array.from(document.querySelectorAll('.feature-checkbox:checked')).map(f => f.value);
+        const algo = document.getElementById('algorithmInput').value;
+        if (!target) { alert('Select a target variable'); e.preventDefault(); return; }
+        if (features.length === 0) { alert('Select at least one feature'); e.preventDefault(); return; }
+        if (features.includes(target)) { alert('Target cannot be used as a feature'); e.preventDefault(); return; }
+        if (!algo) { alert('Select an algorithm'); e.preventDefault(); return; }
     });
-  </script>
+</script>
 </body>
 </html>
