@@ -27,7 +27,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, 
     f1_score, confusion_matrix, classification_report,
-    mean_squared_error, r2_score, mean_absolute_error
+    mean_squared_error, r2_score, mean_absolute_error, roc_curve, auc
 )
 import matplotlib
 matplotlib.use('Agg')
@@ -499,7 +499,12 @@ class ModelTrainer:
         target_validation = self.validator.check_target_column(df, self.target_column)
         print(f"Task type detected: {target_validation['task_type']}")
         # store detected task type so trainer can pick the correct model family
-        self.detected_task_type = target_validation.get('task_type')
+        n_unique = df[self.target_column].nunique()
+        if pd.api.types.is_numeric_dtype(df[self.target_column]) and n_unique > 10:
+            self.detected_task_type = 'regression'
+        else:
+            self.detected_task_type = 'classification'
+
         
         # Store original dtypes
         # If the caller did not explicitly set a task_type, prefer the detected one
@@ -512,8 +517,13 @@ class ModelTrainer:
         
         # Separate features and target
         X = df.drop(columns=[self.target_column])
-        y = df[self.target_column]
-        
+        # Always ensure it's a DataFrame
+        if isinstance(X, pd.Series):
+            X = X.to_frame()
+
+
+        y = df[self.target_column].values
+
         # Identify column types
         categorical_cols = X.select_dtypes(include=['object']).columns.tolist()
         numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
@@ -655,7 +665,7 @@ class ModelTrainer:
         if self.model is None:
             raise ValueError("Model not trained")
         
-        effective_task = self.detected_task_type or self.task_type
+        effective_task = self.task_type or self.detected_task_type
 
         model_data = {
             'model': self.model,
@@ -675,28 +685,85 @@ class ModelTrainer:
         
         return output_path
     
-    def generate_confusion_matrix_plot(self):
-        """Generate confusion matrix for classification"""
+    def generate_confusion_matrix_plot(self, max_classes=10):
+        """Generate simplified confusion matrix for classification"""
         effective_task = self.detected_task_type or self.task_type
         if effective_task != 'classification':
             return None
-            
-        _, cm, _ = self.evaluate_model()
         
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                    xticklabels=np.unique(self.y_test),
-                    yticklabels=np.unique(self.y_test))
+        _, cm, y_test = self.evaluate_model()
+
+        labels = np.unique(y_test)
+        
+        # Limit the number of classes displayed
+        if len(labels) > max_classes:
+            labels = labels[:max_classes]
+            cm = cm[:max_classes, :max_classes]
+        
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                    xticklabels=labels,
+                    yticklabels=labels,
+                    cbar=False)  # remove colorbar to simplify
         plt.title('Confusion Matrix')
         plt.ylabel('True Label')
         plt.xlabel('Predicted Label')
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=0)
+        plt.tight_layout()
         
         buffer = BytesIO()
-        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
         buffer.seek(0)
         plt.close()
         
         return ContentFile(buffer.read(), name='confusion_matrix.png')
+
+    
+    def generate_roc_curve_plot(self):
+        """Generate ROC curve for classification models with probability output"""
+        effective_task = self.task_type
+        if effective_task != 'classification':
+            return None
+
+        # Ensure model supports probability estimates
+        if not hasattr(self.model, "predict_proba"):
+            print("Model does not support probability estimates for ROC curve.")
+            return None
+
+        y_prob = self.model.predict_proba(self.X_test)
+        y_true = self.y_test
+
+        plt.figure(figsize=(8, 6))
+        if y_prob.shape[1] == 2:
+            # Binary classification
+            fpr, tpr, _ = roc_curve(y_true, y_prob[:, 1])
+            roc_auc = auc(fpr, tpr)
+            plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
+        else:
+            # Multiclass — average ROC
+            max_classes_to_plot = 10
+            for i in range(min(y_prob.shape[1], max_classes_to_plot)):
+                fpr, tpr, _ = roc_curve((y_true == i).astype(int), y_prob[:, i])
+                roc_auc = auc(fpr, tpr)
+                plt.plot(fpr, tpr, lw=2, label=f'Class {i} (AUC = {roc_auc:.2f})')
+
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate', fontsize=12)
+        plt.ylabel('True Positive Rate', fontsize=12)
+        plt.title('Receiver Operating Characteristic (ROC) Curve', fontsize=14, weight='bold')
+        plt.legend(loc="lower right", fontsize=8, ncol=2)
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
+        buffer.seek(0)
+        plt.close()
+
+        return ContentFile(buffer.read(), name='roc_curve.png')
     
     def generate_feature_importance_plot(self):
         """Generate feature importance plot"""

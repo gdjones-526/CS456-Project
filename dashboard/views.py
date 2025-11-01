@@ -79,14 +79,15 @@ def analyze_selection(request, dataset_id):
         
 @login_required
 def dashboard(request):
-    """Main dashboard view with file upload and management"""
+    """Main dashboard view with file upload, management, and visualizations"""
     files = UploadedFile.objects.filter(user=request.user).order_by('-uploaded_at')
-    trained_models = AIModel.objects.filter(user=request.user).prefetch_related('metrics')
+    trained_models = AIModel.objects.filter(user=request.user).prefetch_related('metrics', 'figures')
     
-    # Get latest metric for each model
+    # Attach latest metric and figures to each model
     for model in trained_models:
         model.latest_metric = model.metrics.first()
-    
+        model.visualizations = model.figures.all()  # e.g., ROC, Confusion Matrix images
+
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -95,13 +96,12 @@ def dashboard(request):
             uploaded_file.original_name = request.FILES['file'].name
             uploaded_file.save()
             
-            # Process the file to validate it
             try:
                 process_uploaded_file(uploaded_file)
                 messages.success(request, f'File "{uploaded_file.original_name}" uploaded successfully!')
                 return redirect('dashboard')
             except Exception as e:
-                uploaded_file.delete()  # Remove file if processing fails
+                uploaded_file.delete()
                 messages.error(request, f'Error processing file: {str(e)}')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -114,6 +114,7 @@ def dashboard(request):
         'trained_models': trained_models,
     }
     return render(request, 'application/dashboard.html', context)
+
 
 
 @login_required
@@ -242,7 +243,6 @@ def load_dataframe(uploaded_file):
 def train_model(request, dataset_id, algorithm=None):
     """Train a new model on a dataset"""
     dataset = get_object_or_404(UploadedFile, pk=dataset_id, user=request.user)
-    
     if not dataset.processed:
         messages.error(request, 'Dataset is not yet processed. Please wait.')
         return redirect('application/file_detail', pk=dataset_id)
@@ -380,6 +380,16 @@ def train_model(request, dataset_id, algorithm=None):
                         description='Confusion Matrix'
                     )
                     figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+
+                # Generate and save ROC curve (classification only)
+                roc_plot = trainer.generate_roc_curve_plot()
+                if roc_plot:
+                    figure = Figure.objects.create(
+                        model=model,
+                        description='ROC Curve'
+                    )
+                    figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
+
                 
                 # Generate and save feature importance (if applicable)
                 fi_plot = trainer.generate_feature_importance_plot()
@@ -449,6 +459,19 @@ def model_list(request):
         'models': models,
     }
     return render(request, 'application/model_list.html', context)
+
+def delete_model(request, model_id):
+    if request.method == 'POST':
+        model = get_object_or_404(AIModel, id=model_id)
+
+        # Optional: ensure only the model’s owner can delete it
+        if model.user != request.user:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+        model.delete()
+        return JsonResponse({'message': 'Model deleted successfully'}, status=200)
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 # Authentication Views
 def signup_view(request):

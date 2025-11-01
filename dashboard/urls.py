@@ -16,6 +16,8 @@ urlpatterns = [
     path('files/', lambda request: redirect('dashboard'), name='file_list'),
     path('files/<int:pk>/', views.file_detail, name='file_detail'),
     path('files/<int:pk>/delete/', views.delete_file, name='delete_file'),
+    path('models/<int:model_id>/delete/', views.delete_model, name='delete_model'),
+
 
     # Model training
     path('train/<int:dataset_id>/<str:algorithm>/', views.train_model, name='train_model_with_algorithm'),
