@@ -1,70 +1,143 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Database Test Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-  <div class="container py-5">
-    <h1 class="mb-4 text-primary">Database Test Interface</h1>
+{% extends "base.html" %}
 
-    <h3>Uploaded Files</h3>
-    <form method="POST" enctype="multipart/form-data" class="mb-4">
-      {% csrf_token %}
-      {{ uploaded_file_form.as_p }}
-      <button type="submit" name="submit_file" class="btn btn-success">Add File</button>
-    </form>
-
-    <h3>AI Models</h3>
-    <form method="POST" class="mb-4">
-      {% csrf_token %}
-      {{ ai_model_form.as_p }}
-      <button type="submit" name="submit_model" class="btn btn-success">Add Model</button>
-    </form>
-
-    <h3>Performance Metrics</h3>
-    <form method="POST" class="mb-4">
-      {% csrf_token %}
-      {{ metric_form.as_p }}
-      <button type="submit" name="submit_metric" class="btn btn-success">Add Metric</button>
-    </form>
-
-    <h3>Predictions</h3>
-    <form method="POST" class="mb-4">
-      {% csrf_token %}
-      {{ prediction_form.as_p }}
-      <button type="submit" name="submit_pred" class="btn btn-success">Add Prediction</button>
-    </form>
-
-    <h3>Figures</h3>
-    <form method="POST" enctype="multipart/form-data">
-      {% csrf_token %}
-      {{ figure_form.as_p }}
-      <button type="submit" name="submit_fig" class="btn btn-success">Add Figure</button>
-    </form>
-
-    <hr>
-    <h3>Database Contents</h3>
-    <div class="row">
-      <div class="col-md-6">
-        <h5>Files</h5>
-        <ul>{% for f in files %}<li>{{ f }}</li>{% empty %}<li>No files yet</li>{% endfor %}</ul>
-
-        <h5>Models</h5>
-        <ul>{% for m in models %}<li>{{ m }}</li>{% empty %}<li>No models yet</li>{% endfor %}</ul>
-
-        <h5>Metrics</h5>
-        <ul>{% for metric in metrics %}<li>{{ metric }}</li>{% empty %}<li>No metrics yet</li>{% endfor %}</ul>
-
-        <h5>Predictions</h5>
-        <ul>{% for p in predictions %}<li>{{ p }}</li>{% empty %}<li>No predictions yet</li>{% endfor %}</ul>
-
-        <h5>Figures</h5>
-        <ul>{% for fig in figures %}<li>{{ fig }}</li>{% empty %}<li>No figures yet</li>{% endfor %}</ul>
-      </div>
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Model Test Dashboard</h2>
+            <p class="text-muted">
+                Testing {{ total_models }} models ({{ classification_count }} classification, {{ regression_count }} regression)
+            </p>
+        </div>
     </div>
-  </div>
-</body>
-</html>
+
+    <!-- Test Controls -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Run Tests</h5>
+                    <form method="post" action="{% url 'run_tests' %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="test_type" value="all">
+                        <button type="submit" class="btn btn-primary">Run All Tests</button>
+                    </form>
+                    
+                    <form method="post" action="{% url 'run_tests' %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="test_type" value="classification">
+                        <button type="submit" class="btn btn-info">Test Classification</button>
+                    </form>
+                    
+                    <form method="post" action="{% url 'run_tests' %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="test_type" value="regression">
+                        <button type="submit" class="btn btn-success">Test Regression</button>
+                    </form>
+                    
+                    <form method="post" action="{% url 'cleanup_tests' %}" class="d-inline float-end">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger" 
+                                onclick="return confirm('Are you sure? This will delete all test runs.')">
+                            Clean Up
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest Results -->
+    {% if latest_run %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latest Test Run</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Summary</h6>
+                            <p>
+                                Status: <span class="badge bg-{{ latest_run.status|yesno:'success,warning,danger' }}">
+                                    {{ latest_run.status|title }}
+                                </span><br>
+                                Type: {{ latest_run.test_type|title }}<br>
+                                Time: {{ latest_run.timestamp|date:"Y-m-d H:i:s" }}<br>
+                                Duration: {{ latest_run.duration|floatformat:2 }}s
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Results</h6>
+                            <p>
+                                Passed: {{ latest_run.passed }}<br>
+                                Failed: {{ latest_run.failed }}<br>
+                                Errors: {{ latest_run.errors }}<br>
+                                Pass Rate: {{ latest_run.pass_rate_display }}
+                            </p>
+                        </div>
+                    </div>
+                    <a href="{% url 'test_results' latest_run.id %}" class="btn btn-sm btn-outline-primary">
+                        View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Test History -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Test History</h5>
+                </div>
+                <div class="card-body">
+                    {% if test_runs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Pass Rate</th>
+                                    <th>Duration</th>
+                                    <th>Timestamp</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for run in test_runs %}
+                                <tr>
+                                    <td>{{ run.id }}</td>
+                                    <td>{{ run.test_type|title }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ run.status|yesno:'success,warning,danger' }}">
+                                            {{ run.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ run.pass_rate_display }}</td>
+                                    <td>{{ run.duration|floatformat:2 }}s</td>
+                                    <td>{{ run.timestamp|date:"Y-m-d H:i:s" }}</td>
+                                    <td>
+                                        <a href="{% url 'test_results' run.id %}" class="btn btn-sm btn-outline-primary">
+                                            Details
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No test runs yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
