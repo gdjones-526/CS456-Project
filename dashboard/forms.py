@@ -39,17 +39,10 @@ class FileUploadForm(forms.ModelForm):
 
 
 class ModelTrainingForm(forms.ModelForm):
-    # Build algorithm choices from registry (classification + regression)
-    ALGORITHM_CHOICES = []
-    # merge classification and regression models; use human-friendly name if available
-    combined = {**ModelRegistry.CLASSIFICATION_MODELS, **ModelRegistry.REGRESSION_MODELS}
-    for key, meta in combined.items():
-        display = meta.get('name', key.replace('_', ' ').title())
-        ALGORITHM_CHOICES.append((key, display))
-
-    algorithm = forms.ChoiceField(
-        choices=ALGORITHM_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-control'})
+    # Use CharField instead of ChoiceField with hardcoded choices
+    # This allows any algorithm from the registry to be submitted
+    algorithm = forms.CharField(
+        widget=forms.HiddenInput(attrs={'id': 'algorithmInput'})
     )
 
     task_type = forms.ChoiceField(
@@ -57,8 +50,8 @@ class ModelTrainingForm(forms.ModelForm):
             ('classification', 'Classification'),
             ('regression', 'Regression'),
         ],
-        widget=forms.HiddenInput(),
-        required=False  # Make it optional so we can fallback to auto-detection
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        required=True
     )
 
     test_size = forms.FloatField(
@@ -130,6 +123,25 @@ class ModelTrainingForm(forms.ModelForm):
                 user=user, 
                 processed=True
             )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        task_type = cleaned_data.get('task_type')
+        algorithm = cleaned_data.get('algorithm')
+        
+        if task_type and algorithm:
+            # Validate algorithm is valid for the selected task type
+            if task_type == 'classification':
+                valid_algorithms = ModelRegistry.CLASSIFICATION_MODELS.keys()
+                error_message = f"'{algorithm}' is not a valid classification algorithm."
+            else:
+                valid_algorithms = ModelRegistry.REGRESSION_MODELS.keys()
+                error_message = f"'{algorithm}' is not a valid regression algorithm."
+            
+            if algorithm not in valid_algorithms:
+                raise forms.ValidationError(error_message)
+        
+        return cleaned_data
 
 
 class ExperimentForm(forms.ModelForm):

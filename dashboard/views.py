@@ -255,6 +255,29 @@ def train_model(request, dataset_id, algorithm=None):
         messages.error(request, f'Error loading dataset: {str(e)}')
         return redirect('file_detail', pk=dataset_id)
     
+    # ---------------
+    classification_algorithms = {}
+    regression_algorithms = {}
+    
+    # Build classification algorithms dict
+    for key, model_info in ModelRegistry.CLASSIFICATION_MODELS.items():
+        classification_algorithms[key] = {
+            'name': model_info['name'],
+            'description': model_info['description'],
+            'family': model_info['family'],
+            'task_type': 'classification'
+        }
+    
+    # Build regression algorithms dict
+    for key, model_info in ModelRegistry.REGRESSION_MODELS.items():
+        regression_algorithms[key] = {
+            'name': model_info['name'],
+            'description': model_info['description'],
+            'family': model_info['family'],
+            'task_type': 'regression'
+        }
+    #  ---------------
+
     if request.method == 'POST':
 
         print("POST data:", request.POST)
@@ -276,12 +299,17 @@ def train_model(request, dataset_id, algorithm=None):
             model.framework = 'scikit-learn'
             model.status = 'training'
             
+            # Parse algorithm and task type from the selection
+            # task_type, algorithm = form.cleaned_data['algorithm'].split('|')
+            task_type = form.cleaned_data['task_type']
+            algorithm = form.cleaned_data['algorithm']
+            
             # Store training parameters
             model.parameters = {
-                'algorithm': form.cleaned_data['algorithm'],
+                'algorithm': algorithm,
                 'test_size': form.cleaned_data['test_size'],
                 'random_state': form.cleaned_data['random_state'],
-                'task_type': form.cleaned_data['task_type'],
+                'task_type': task_type,
             }
             model.save()
             
@@ -294,9 +322,9 @@ def train_model(request, dataset_id, algorithm=None):
                 trainer = ModelTrainer(
                     dataset_path=dataset.file.path,
                     target_column=model.target_variable,
-                    algorithm=form.cleaned_data['algorithm'],
+                    algorithm=algorithm,
                     test_size=test_size_val,
-                    task_type=form.cleaned_data['task_type'],
+                    task_type=task_type,
                     validation_size=form.cleaned_data.get('validation_size', 0.0),
                     random_state=random_state_val,
                     missing_value_strategy=form.cleaned_data.get('missing_value_strategy', 'mean'),
@@ -386,6 +414,9 @@ def train_model(request, dataset_id, algorithm=None):
         'form': form,
         'dataset': dataset,
         'columns': columns,
+        'dataset': dataset,
+        'classification_algorithms_json': json.dumps(classification_algorithms),
+        'regression_algorithms_json': json.dumps(regression_algorithms),
     }
     return render(request, 'application/train_model.html', context)
 
