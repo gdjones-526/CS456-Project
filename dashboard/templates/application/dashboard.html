@@ -144,6 +144,11 @@
             <i class="bi bi-person-circle"></i> Account / Auth
           </a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'test_dashboard' %}">
+            <i class="bi bi-check2-square"></i> Tests
+          </a>
+        </li>
       </ul>
     </div>
   </nav>
@@ -152,8 +157,11 @@
   <main class="main-content">
     <div class="d-flex justify-content-between flex-wrap align-items-center pb-2 mb-4 border-bottom">
       <h2 class="text-secondary">Machine Learning Dashboard</h2>
-      <div class="text-muted">
-        <i class="bi bi-calendar3"></i> <span id="currentDate"></span>
+      <div class="d-flex align-items-center">
+
+        <div class="text-muted">
+          <i class="bi bi-calendar3"></i> <span id="currentDate"></span>
+        </div>
       </div>
     </div>
 
