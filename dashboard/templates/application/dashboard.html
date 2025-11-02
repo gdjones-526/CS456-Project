@@ -736,6 +736,38 @@
         bsAlert.close();
       });
     }, 5000);
+
+    async function loadFigure(modelId, figureType, targetDivId) {
+      if (!modelId) {
+        document.getElementById(targetDivId).innerHTML = `<p class="text-muted mt-5">No model selected</p>`;
+        return;
+      }
+
+      const response = await fetch(`/get_figure_url/${modelId}/${figureType}/`);
+      const data = await response.json();
+
+      if (data.url) {
+        document.getElementById(targetDivId).innerHTML = `
+          <img src="${data.url}" alt="${figureType}" class="img-fluid rounded shadow-sm">
+        `;
+      } else {
+        document.getElementById(targetDivId).innerHTML = `
+          <p class="text-muted mt-5">No ${figureType} available for this model</p>
+        `;
+      }
+    }
+
+    // Event listeners
+    ['modelSelect1', 'modelSelect2', 'figureType'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        const model1 = document.getElementById('modelSelect1').value;
+        const model2 = document.getElementById('modelSelect2').value;
+        const figureType = document.getElementById('figureType').value;
+
+        loadFigure(model1, figureType, 'figure1');
+        loadFigure(model2, figureType, 'figure2');
+      });
+    });
   </script>
 </body>
 </html>

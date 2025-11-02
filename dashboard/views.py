@@ -15,6 +15,17 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
 from collections import defaultdict # <-- Import this
+from django.http import JsonResponse
+
+
+def get_figure_url(request, model_id, figure_type):
+    try:
+        figure = Figure.objects.filter(model_id=model_id, description__icontains=figure_type).first()
+        if figure and figure.figure_file:
+            return JsonResponse({'url': figure.figure_file.url})
+    except AIModel.DoesNotExist:
+        pass
+    return JsonResponse({'url': None})
 
 @login_required
 def upload_file(request):

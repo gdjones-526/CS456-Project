@@ -26,4 +26,6 @@ urlpatterns = [
     path('models/<int:pk>/', views.model_detail, name='model_detail'),
 
     path('analyze-target/<int:dataset_id>/<str:target_column>/', views.analyze_target, name='analyze_target'),
+
+    path('get_figure_url/<int:model_id>/<str:figure_type>/', views.get_figure_url, name='get_figure_url'),
 ]
