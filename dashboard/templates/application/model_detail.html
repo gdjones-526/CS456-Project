@@ -136,71 +136,71 @@
     </div>
 
     <!-- Performance Metrics -->
-{% if metrics %}
-<div class="card">
-  <div class="card-header bg-primary text-white">
-    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Performance Metrics</h5>
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
-      {% if metrics.accuracy %}
-        <!-- Classification Metrics -->
-        <div class="col-md-3">
-          <div class="metric-card">
-            <div class="metric-value">{{ metrics.accuracy|floatformat:2 }}%</div>
-            <div class="metric-label">Accuracy</div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-            <div class="metric-value">{{ metrics.precision|floatformat:2 }}</div>
-            <div class="metric-label">Precision</div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-            <div class="metric-value">{{ metrics.recall|floatformat:2 }}</div>
-            <div class="metric-label">Recall</div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-            <div class="metric-value">{{ metrics.f1_score|floatformat:2 }}</div>
-            <div class="metric-label">F1 Score</div>
-          </div>
-        </div>
+    {% if metrics %}
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Performance Metrics</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          {% if metrics.accuracy %}
+            <!-- Classification Metrics -->
+            <div class="col-md-3">
+              <div class="metric-card">
+                <div class="metric-value">{{ metrics.accuracy|floatformat:2 }}%</div>
+                <div class="metric-label">Accuracy</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="metric-value">{{ metrics.precision|floatformat:2 }}</div>
+                <div class="metric-label">Precision</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="metric-value">{{ metrics.recall|floatformat:2 }}</div>
+                <div class="metric-label">Recall</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="metric-value">{{ metrics.f1_score|floatformat:2 }}</div>
+                <div class="metric-label">F1 Score</div>
+              </div>
+            </div>
 
-      {% else %}
-        <!-- Regression Metrics -->
-        <div class="col-md-3">
-          <div class="metric-card">
-            <div class="metric-value">{{ metrics.mse|floatformat:4 }}</div>
-            <div class="metric-label">MSE</div>
-          </div>
+          {% else %}
+            <!-- Regression Metrics -->
+            <div class="col-md-3">
+              <div class="metric-card">
+                <div class="metric-value">{{ metrics.mse|floatformat:4 }}</div>
+                <div class="metric-label">MSE</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="metric-value">{{ metrics.rmse|floatformat:4 }}</div>
+                <div class="metric-label">RMSE</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="metric-value">{{ metrics.mae|floatformat:4 }}</div>
+                <div class="metric-label">MAE</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="metric-value">{{ metrics.r2_score|floatformat:4 }}</div>
+                <div class="metric-label">R² Score</div>
+              </div>
+            </div>
+          {% endif %}
         </div>
-        <div class="col-md-3">
-          <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-            <div class="metric-value">{{ metrics.rmse|floatformat:4 }}</div>
-            <div class="metric-label">RMSE</div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-            <div class="metric-value">{{ metrics.mae|floatformat:4 }}</div>
-            <div class="metric-label">MAE</div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-            <div class="metric-value">{{ metrics.r2_score|floatformat:4 }}</div>
-            <div class="metric-label">R² Score</div>
-          </div>
-        </div>
-      {% endif %}
+      </div>
     </div>
-  </div>
-</div>
-{% endif %}
+    {% endif %}
 
     <!-- Training Configuration -->
     <div class="card">
@@ -247,180 +247,179 @@
     </div>
 
     <!-- Model Configuration Section -->
-<div class="card">
-  <div class="card-header bg-info text-white">
-    <h5 class="mb-0"><i class="bi bi-gear-fill"></i> Model Configuration</h5>
-  </div>
-  <div class="card-body">
-    <div class="row">
-      <div class="col-md-6">
-        <h6 class="text-muted mb-3">Training Details</h6>
-        <table class="table table-sm">
-          <tbody>
-            <tr>
-              <td><strong>Target Variable:</strong></td>
-              <td><span class="badge bg-primary">{{ model.target_variable }}</span></td>
-            </tr>
-            <tr>
-              <td><strong>Number of Features:</strong></td>
-              <td>{{ num_features }}</td>
-            </tr>
-            <tr>
-              <td><strong>Algorithm:</strong></td>
-              <td>{{ model.parameters.algorithm|default:"N/A" }}</td>
-            </tr>
-            <tr>
-              <td><strong>Task Type:</strong></td>
-              <td>
-                <span class="badge bg-{% if model.parameters.task_type == 'classification' %}success{% else %}info{% endif %}">
-                  {{ model.parameters.task_type|title }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="card">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-gear-fill"></i> Model Configuration</h5>
       </div>
-      
-      <div class="col-md-6">
-        <h6 class="text-muted mb-3">Preprocessing</h6>
-        <table class="table table-sm">
-          <tbody>
-            <tr>
-              <td><strong>Missing Value Strategy:</strong></td>
-              <td>{{ preprocessing_info.missing_value_strategy|title }}</td>
-            </tr>
-            <tr>
-              <td><strong>Train/Test Split:</strong></td>
-              <td>{{ preprocessing_info.train_test_split|floatformat:2 }}</td>
-            </tr>
-            <tr>
-              <td><strong>Random State:</strong></td>
-              <td>{{ preprocessing_info.random_state }}</td>
-            </tr>
-            {% if preprocessing_info.validation_split > 0 %}
-            <tr>
-              <td><strong>Validation Split:</strong></td>
-              <td>{{ preprocessing_info.validation_split|floatformat:2 }}</td>
-            </tr>
-            {% endif %}
-          </tbody>
-        </table>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6 class="text-muted mb-3">Training Details</h6>
+            <table class="table table-sm">
+              <tbody>
+                <tr>
+                  <td><strong>Target Variable:</strong></td>
+                  <td><span class="badge bg-primary">{{ model.target_variable }}</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Number of Features:</strong></td>
+                  <td>{{ num_features }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Algorithm:</strong></td>
+                  <td>{{ model.parameters.algorithm|default:"N/A" }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Task Type:</strong></td>
+                  <td>
+                    <span class="badge bg-{% if model.parameters.task_type == 'classification' %}success{% else %}info{% endif %}">
+                      {{ model.parameters.task_type|title }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="col-md-6">
+            <h6 class="text-muted mb-3">Preprocessing</h6>
+            <table class="table table-sm">
+              <tbody>
+                <tr>
+                  <td><strong>Missing Value Strategy:</strong></td>
+                  <td>{{ preprocessing_info.missing_value_strategy|title }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Train/Test Split:</strong></td>
+                  <td>{{ preprocessing_info.train_test_split|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Random State:</strong></td>
+                  <td>{{ preprocessing_info.random_state }}</td>
+                </tr>
+                {% if preprocessing_info.validation_split > 0 %}
+                <tr>
+                  <td><strong>Validation Split:</strong></td>
+                  <td>{{ preprocessing_info.validation_split|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Features Section -->
-<div class="card mt-3">
-  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-    <h5 class="mb-0"><i class="bi bi-list-columns-reverse"></i> Features Used ({{ num_features }})</h5>
-    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#featuresCollapse">
-      <i class="bi bi-chevron-down"></i> Toggle
-    </button>
-  </div>
-  <div class="collapse show" id="featuresCollapse">
-    <div class="card-body">
-      {% if feature_names %}
-      <div class="row">
-        {% for feature in feature_names %}
-        <div class="col-md-3 col-sm-4 col-6 mb-2">
-          <span class="badge bg-secondary" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
-            <i class="bi bi-{% if feature in preprocessing_info.numeric_columns %}123{% else %}text-left{% endif %}"></i>
-            {{ feature }}
-          </span>
-        </div>
-        {% endfor %}
+    <!-- Features Section -->
+    <div class="card mt-3">
+      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-columns-reverse"></i> Features Used ({{ num_features }})</h5>
+        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#featuresCollapse">
+          <i class="bi bi-chevron-down"></i> Toggle
+        </button>
       </div>
-      
-      <!-- Feature Type Summary -->
-      <div class="alert alert-info mt-3 mb-0">
+      <div class="collapse show" id="featuresCollapse">
+        <div class="card-body">
+          {% if feature_names %}
+          <div class="row">
+            {% for feature in feature_names %}
+            <div class="col-md-3 col-sm-4 col-6 mb-2">
+              <span class="badge bg-secondary" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                <i class="bi bi-{% if feature in preprocessing_info.numeric_columns %}123{% else %}text-left{% endif %}"></i>
+                {{ feature }}
+              </span>
+            </div>
+            {% endfor %}
+          </div>
+          <!-- Feature Type Summary -->
+          <div class="alert alert-info mt-3 mb-0">
+            <div class="row text-center">
+                <div class="col-md-4">
+                  <strong>Numeric Features:</strong> 
+                  <span class="badge bg-primary">{{ preprocessing_info.numeric_columns|length }}</span>
+                </div>
+                <div class="col-md-4">
+                  <strong>Categorical Features:</strong> 
+                  <span class="badge bg-success">{{ preprocessing_info.categorical_columns|length }}</span>
+                </div>
+                <div class="col-md-4">
+                  <strong>Total Features:</strong> 
+                  <span class="badge bg-dark">{{ num_features }}</span>
+                </div>
+              </div>
+            </div>
+          {% else %}
+          <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-triangle"></i> Feature information not available for this model.
+          </div>
+          {% endif %}
+          </div>
+        </div>
+      </div>
+
+    <!-- Dataset Info (Optional) -->
+    {% if dataset_info %}
+    <div class="card mt-3">
+      <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0"><i class="bi bi-database"></i> Dataset Information</h5>
+      </div>
+      <div class="card-body">
         <div class="row text-center">
           <div class="col-md-4">
-            <strong>Numeric Features:</strong> 
-            <span class="badge bg-primary">{{ preprocessing_info.numeric_columns|length }}</span>
+            <h3 class="text-primary">{{ dataset_info.rows }}</h3>
+            <p class="text-muted mb-0">Total Rows</p>
           </div>
           <div class="col-md-4">
-            <strong>Categorical Features:</strong> 
-            <span class="badge bg-success">{{ preprocessing_info.categorical_columns|length }}</span>
+            <h3 class="text-success">{{ dataset_info.columns }}</h3>
+            <p class="text-muted mb-0">Total Columns</p>
           </div>
           <div class="col-md-4">
-            <strong>Total Features:</strong> 
-            <span class="badge bg-dark">{{ num_features }}</span>
+            <h3 class="text-info">{{ num_features }}</h3>
+            <p class="text-muted mb-0">Features Used</p>
           </div>
         </div>
+        
+        {% if model.dataset %}
+        <div class="mt-3 text-center">
+          <a href="{% url 'file_detail' model.dataset.pk %}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> View Full Dataset
+          </a>
+        </div>
+        {% endif %}
       </div>
-      {% else %}
-      <div class="alert alert-warning mb-0">
-        <i class="bi bi-exclamation-triangle"></i> Feature information not available for this model.
-      </div>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- Dataset Info (Optional) -->
-{% if dataset_info %}
-<div class="card mt-3">
-  <div class="card-header bg-secondary text-white">
-    <h5 class="mb-0"><i class="bi bi-database"></i> Dataset Information</h5>
-  </div>
-  <div class="card-body">
-    <div class="row text-center">
-      <div class="col-md-4">
-        <h3 class="text-primary">{{ dataset_info.rows }}</h3>
-        <p class="text-muted mb-0">Total Rows</p>
-      </div>
-      <div class="col-md-4">
-        <h3 class="text-success">{{ dataset_info.columns }}</h3>
-        <p class="text-muted mb-0">Total Columns</p>
-      </div>
-      <div class="col-md-4">
-        <h3 class="text-info">{{ num_features }}</h3>
-        <p class="text-muted mb-0">Features Used</p>
-      </div>
-    </div>
-    
-    {% if model.dataset %}
-    <div class="mt-3 text-center">
-      <a href="{% url 'file_detail' model.dataset.pk %}" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-file-earmark-spreadsheet"></i> View Full Dataset
-      </a>
     </div>
     {% endif %}
-  </div>
-</div>
-{% endif %}
-    <!-- Visualizations -->
-    {% if figures %}
-    <div class="card">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-bar-chart-line"></i> Visualizations</h5>
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          {% for figure in figures %}
-          <div class="col-md-6">
-            <div class="figure-container">
-              <h6 class="mb-3">{{ figure.description }}</h6>
-              <img src="{{ figure.figure_file.url }}" alt="{{ figure.description }}">
-              <p class="text-muted small mt-2">
-                <i class="bi bi-calendar3"></i> Generated {{ figure.created_at|date:"M d, Y H:i" }}
-              </p>
+        <!-- Visualizations -->
+        {% if figures %}
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-bar-chart-line"></i> Visualizations</h5>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              {% for figure in figures %}
+              <div class="col-md-6">
+                <div class="figure-container">
+                  <h6 class="mb-3">{{ figure.description }}</h6>
+                  <img src="{{ figure.figure_file.url }}" alt="{{ figure.description }}">
+                  <p class="text-muted small mt-2">
+                    <i class="bi bi-calendar3"></i> Generated {{ figure.created_at|date:"M d, Y H:i" }}
+                  </p>
+                </div>
+              </div>
+              {% endfor %}
             </div>
           </div>
-          {% endfor %}
         </div>
-      </div>
-    </div>
-    {% else %}
-    <div class="card">
-      <div class="card-body">
-        <div class="alert alert-info mb-0">
-          <i class="bi bi-info-circle"></i> No visualizations available for this model.
+        {% else %}
+        <div class="card">
+          <div class="card-body">
+            <div class="alert alert-info mb-0">
+              <i class="bi bi-info-circle"></i> No visualizations available for this model.
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
     <!-- Actions -->
     <div class="card">
