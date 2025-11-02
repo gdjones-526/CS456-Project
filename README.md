@@ -1,5 +1,37 @@
 # CS456 Project: Machine Learning Web Platform
 
+## Overview
+This web application allows users to upload datasets, train machine learning models, and visualize model performance with metrics and plots. It supports both classification and regression tasks and provides an interactive dashboard for managing datasets and models.
+
+---
+
+## System Requirements
+- **Python Version:** 3.10+
+---
+
+## Environment Setup
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/gdjones-526/CS456-Project.git
+   cd CS456-Project
+
+2. **Setup Environment**
+   ```bash
+   python -m venv venv
+   # Windows
+   venv\Scripts\activate
+   # macOS/Linux
+   source venv/bin/activate
+   
+3. **Install requirements**
+   ```bash
+   pip install -r requirements.txt
+
+4. **Run Server**
+   ```bash
+   python manage.py runserver
+
 This guide provides a step-by-step walkthrough to use the website.
 
 ---
