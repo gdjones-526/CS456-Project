@@ -563,13 +563,59 @@ def model_detail(request, pk):
     metrics = model.metrics.first()
     figures = model.figures.all()
     
+    # Load model file to get feature names and additional info
+    feature_names = []
+    preprocessing_info = {}
+    
+    if model.model_file:
+        try:
+            model_path = model.model_file.path
+            model_data = joblib.load(model_path)
+            
+            # Extract feature names from saved model
+            feature_names = model_data.get('feature_names', [])
+            
+            # Extract preprocessing configuration
+            preprocessing_config = model_data.get('preprocessing_config', {})
+            preprocessing_info = {
+                'missing_value_strategy': preprocessing_config.get('missing_value_strategy', 'N/A'),
+                'train_test_split': preprocessing_config.get('train_test_split', 0.2),
+                'validation_split': preprocessing_config.get('validation_split', 0.0),
+                'random_state': preprocessing_config.get('random_state', 42),
+                'categorical_columns': preprocessing_config.get('categorical_columns', []),
+                'numeric_columns': preprocessing_config.get('numeric_columns', []),
+            }
+            
+        except Exception as e:
+            print(f"Error loading model file: {e}")
+            # Fallback: try to get from parameters if available
+            if model.parameters and isinstance(model.parameters, dict):
+                feature_names = model.parameters.get('feature_columns', [])
+    
+    # Get dataset info if available
+    dataset_info = None
+    if model.dataset:
+        try:
+            from .ml_utils import load_dataframe
+            df = load_dataframe(model.dataset)
+            dataset_info = {
+                'rows': len(df),
+                'columns': len(df.columns),
+                'all_columns': df.columns.tolist(),
+            }
+        except Exception as e:
+            print(f"Error loading dataset: {e}")
+    
     context = {
         'model': model,
         'metrics': metrics,
         'figures': figures,
+        'feature_names': feature_names,
+        'num_features': len(feature_names),
+        'preprocessing_info': preprocessing_info,
+        'dataset_info': dataset_info,
     }
     return render(request, 'application/model_detail.html', context)
-
 
 @login_required
 def model_list(request):
