@@ -14,6 +14,7 @@ from django.http import JsonResponse
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
+from collections import defaultdict # <-- Import this
 
 @login_required
 def upload_file(request):
@@ -83,10 +84,51 @@ def dashboard(request):
     files = UploadedFile.objects.filter(user=request.user).order_by('-uploaded_at')
     trained_models = AIModel.objects.filter(user=request.user).prefetch_related('metrics', 'figures')
     
-    # Attach latest metric and figures to each model
+    grouped_models = defaultdict(lambda: {
+        'classification': [],
+        'regression': []
+    })
+
     for model in trained_models:
+        # Attach latest metric and figures (as you did before)
         model.latest_metric = model.metrics.first()
-        model.visualizations = model.figures.all()  # e.g., ROC, Confusion Matrix images
+        model.visualizations = model.figures.all()
+        
+        dataset_name = model.dataset.original_name
+        
+        # Add model to the correct list
+        if model.parameters['task_type'] == 'classification':
+            grouped_models[dataset_name]['classification'].append(model)
+        else:
+            grouped_models[dataset_name]['regression'].append(model)
+
+    sorted_grouped_models = {}
+    for dataset_name, models in grouped_models.items():
+        
+        # Sort classification models by Accuracy (descending)
+        # We handle 'None' values by treating them as -1 (lowest accuracy)
+        sorted_class = sorted(
+            models['classification'],
+            key=lambda m: m.latest_metric.accuracy if m.latest_metric and m.latest_metric.accuracy is not None else -1,
+            reverse=True  # Highest accuracy first
+        )
+        
+        # Sort regression models by MAE (ascending)
+        # We handle 'None' values by treating them as infinity (highest error)
+        sorted_reg = sorted(
+            models['regression'],
+            key=lambda m: m.latest_metric.mae if m.latest_metric and m.latest_metric.mae is not None else float('inf'),
+            reverse=False  # Lowest error first
+        )
+        
+        # Add the sorted lists to our new dictionary
+        if sorted_class or sorted_reg: # Only add datasets that have models
+            sorted_grouped_models[dataset_name] = {
+                'classification': sorted_class,
+                'regression': sorted_reg
+            }
+
+    # --- END: Modified Model Sorting Logic ---
 
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
@@ -112,6 +154,7 @@ def dashboard(request):
         'form': form,
         'files': files,
         'trained_models': trained_models,
+        'grouped_models': sorted_grouped_models,
     }
     return render(request, 'application/dashboard.html', context)
 
@@ -397,25 +440,84 @@ def train_model(request, dataset_id, algorithm=None):
                 model.model_file = f'trained_models/{model_filename}'
                 
                 # Generate and save confusion matrix
-                cm_plot = trainer.generate_confusion_matrix_plot()
-                if cm_plot:
-                    figure = Figure.objects.create(
-                        model=model,
-                        description='Confusion Matrix'
-                    )
-                    figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+                # cm_plot = trainer.generate_confusion_matrix_plot()
+                # if cm_plot:
+                #     figure = Figure.objects.create(
+                #         model=model,
+                #         description='Confusion Matrix'
+                #     )
+                #     figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
 
-                # Generate and save ROC curve (classification only)
-                roc_plot = trainer.generate_roc_curve_plot()
-                if roc_plot:
-                    figure = Figure.objects.create(
-                        model=model,
-                        description='ROC Curve'
-                    )
-                    figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
+                # # Generate and save ROC curve (classification only)
+                # roc_plot = trainer.generate_roc_curve_plot()
+                # if roc_plot:
+                #     figure = Figure.objects.create(
+                #         model=model,
+                #         description='ROC Curve'
+                #     )
+                #     figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
 
                 
+                # # Generate and save feature importance (if applicable)
+                # fi_plot = trainer.generate_feature_importance_plot()
+                # if fi_plot:
+                #     figure = Figure.objects.create(
+                #         model=model,
+                #         description='Feature Importance'
+                #     )
+                #     figure.figure_file.save(f'feature_importance_{model.id}.png', fi_plot)
+                
+                # # Update model status
+                # model.status = 'completed'
+                # model.save()
+                
+                # --- Task-Specific Figure Generation ---
+                # Get the task type from the trainer object
+                task_type = trainer.task_type 
+
+                if task_type == 'classification':
+                    # Generate and save Confusion Matrix (classification only)
+                    cm_plot = trainer.generate_confusion_matrix_plot()
+                    if cm_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='Confusion Matrix'
+                        )
+                        figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+
+                    # Generate and save ROC curve (classification only)
+                    roc_plot = trainer.generate_roc_curve_plot()
+                    if roc_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='ROC Curve'
+                        )
+                        figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
+                
+                elif task_type == 'regression':
+                    # Generate and save Actual vs. Predicted (regression only)
+                    avp_plot = trainer.generate_actual_vs_predicted_plot()
+                    if avp_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='Actual vs. Predicted'
+                        )
+                        figure.figure_file.save(f'actual_vs_predicted_{model.id}.png', avp_plot)
+
+                    # Generate and save Residuals vs. Fitted (regression only)
+                    rvf_plot = trainer.generate_residuals_vs_fitted_plot()
+                    if rvf_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='Residuals vs. Fitted'
+                        )
+                        figure.figure_file.save(f'residuals_vs_fitted_{model.id}.png', rvf_plot)
+
+                
+                # --- Universal Figure Generation ---
+                
                 # Generate and save feature importance (if applicable)
+                # This function works for both regression and classification
                 fi_plot = trainer.generate_feature_importance_plot()
                 if fi_plot:
                     figure = Figure.objects.create(

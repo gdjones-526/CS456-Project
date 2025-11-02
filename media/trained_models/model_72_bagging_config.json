@@ -1,0 +1,31 @@
+{
+  "missing_value_strategy": "mean",
+  "encoding_strategy": "label",
+  "scaling_strategy": "standard",
+  "feature_columns": [
+    "SepalLengthCm",
+    "SepalWidthCm",
+    "PetalLengthCm",
+    "PetalWidthCm"
+  ],
+  "target_column": "Species",
+  "categorical_columns": [],
+  "numeric_columns": [
+    "SepalLengthCm",
+    "SepalWidthCm",
+    "PetalLengthCm",
+    "PetalWidthCm"
+  ],
+  "column_dtypes": {
+    "Id": "int64",
+    "SepalLengthCm": "float64",
+    "SepalWidthCm": "float64",
+    "PetalLengthCm": "float64",
+    "PetalWidthCm": "float64",
+    "Species": "object"
+  },
+  "train_test_split": 0.5,
+  "validation_split": 0.0,
+  "random_state": 42,
+  "task_type": "classification"
+}

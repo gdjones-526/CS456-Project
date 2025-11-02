@@ -268,167 +268,196 @@
     </section>
 
     <!-- C) Evaluation Metrics Comparison -->
-    <section id="evaluation" class="mb-5">
+<section id="evaluation" class="mb-5">
       <h4 class="text-primary mb-3"><i class="bi bi-graph-up"></i> Model Evaluation & Metrics</h4>
-      <div class="card shadow-sm p-4">
-        <p class="text-muted">Compare model performance and evaluation metrics</p>
-        {% if trained_models %}
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Model Details</th>
-                <th>Task Type</th>
-                <th>Dataset</th>
-                <th>Metrics</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for model in trained_models %}
-              <tr>
-                <td>
-                  <div class="d-flex align-items-center">
-                    <i class="bi bi-cpu text-primary me-2"></i>
-                    <div>
-                      <strong>{{ model.name }}</strong>
-                      <div class="small text-muted">Algorithm: {{ model.parameters.algorithm|default:"Unknown" }}</div>
-                      <div class="small text-muted">Created: {{ model.created_at|date:"M d, Y" }}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span class="badge bg-{% if model.parameters.task_type == 'classification' %}info{% else %}success{% endif %}">
-                    {{ model.parameters.task_type|default:"Unknown"|title }}
-                  </span>
-                </td>
-                <td>
-                  <small class="text-muted">{{ model.dataset.original_name }}</small>
-                </td>
-                <td>
-                  {% if model.parameters.task_type == 'classification' %}
-                  <div class="small">
-                    <h6 class="text-primary mb-2">Classification Metrics</h6>
-                    <table class="table table-sm table-borderless mb-0">
+
+      {% if grouped_models %}
+        
+        {% for dataset_name, models in grouped_models.items %}
+          <div class="card shadow-sm p-4 mb-4">
+            <h5 class="mb-3 border-bottom pb-2">Dataset: <strong>{{ dataset_name }}</strong></h5>
+
+            {% if models.classification %}
+            <div class="mb-4">
+              <h6 class="text-info"><i class="bi bi-bar-chart-steps"></i> Classification Models (Sorted by Accuracy)</h6>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Model Details</th>
+                      <th>Metrics</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for model in models.classification %}
                       <tr>
-                        <td><strong>Accuracy:</strong></td>
                         <td>
-                          {% if model.latest_metric.accuracy %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.accuracy|floatformat:3 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
+                          <div class="d-flex align-items-center">
+                            <i class="bi bi-cpu text-primary me-2"></i>
+                            <div>
+                              <strong>{{ model.name }}</strong>
+                              <div class="small text-muted">Algorithm: {{ model.parameters.algorithm|default:"Unknown" }}</div>
+                              <div class="small text-muted">Created: {{ model.created_at|date:"M d, Y" }}</div>
+                            </div>
+                          </div>
+                        </td>
+                          <td>
+                          <div class="small">
+                            <table class="table table-sm table-borderless mb-0">
+                              <tr>
+                                <td><strong>Accuracy:</strong></td>
+                                <td>
+                                  {% if model.latest_metric.accuracy is not None %}
+                                    <span class="badge bg-light text-dark">{{ model.latest_metric.accuracy|floatformat:3 }}</span>
+                                  {% else %}
+                                    <span class="text-muted">N/A</span>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td><strong>Precision:</strong></td>
+                                <td>
+                                  {% if model.latest_metric.precision is not None %}
+                                    <span class="badge bg-light text-dark">{{ model.latest_metric.precision|floatformat:3 }}</span>
+                                  {% else %}
+                                    <span class="text-muted">N/A</span>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td><strong>Recall:</strong></td>
+                                <td>
+                                  {% if model.latest_metric.recall is not None %}
+                                    <span class="badge bg-light text-dark">{{ model.latest_metric.recall|floatformat:3 }}</span>
+                                  {% else %}
+                                    <span class="text-muted">N/A</span>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td><strong>F1 Score:</strong></td>
+                                <td>
+                                  {% if model.latest_metric.f1_score is not None %}
+                                    <span class="badge bg-light text-dark">{{ model.latest_metric.f1_score|floatformat:3 }}</span>
+                                  {% else %}
+                                    <span class="text-muted">N/A</span>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                            </table>
+                          </div>
+                        </td>
+                        <td>
+                          <span class="badge bg-{% if model.status == 'completed' %}success{% elif model.status == 'training' %}warning{% else %}danger{% endif %}">
+                            {{ model.get_status_display }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewModelDetails({{ model.id }})">
+                              <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteModel({{ model.id }})">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {% endif %}
+            
+            {% if models.regression %}
+            <div>
+              <h6 class="text-success"><i class="bi bi-graph-up-arrow"></i> Regression Models (Sorted by MAE)</h6>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Model Details</th>
+                      <th>Metrics</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for model in models.regression %}
                       <tr>
-                        <td><strong>Precision:</strong></td>
                         <td>
-                          {% if model.latest_metric.precision %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.precision|floatformat:3 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
+                          <div class="d-flex align-items-center">
+                            <i class="bi bi-cpu text-primary me-2"></i>
+                            <div>
+                              <strong>{{ model.name }}</strong>
+                              <div class="small text-muted">Algorithm: {{ model.parameters.algorithm|default:"Unknown" }}</div>
+                              <div class="small text-muted">Created: {{ model.created_at|date:"M d, Y" }}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="small">
+                            <table class="table table-sm table-borderless mb-0">
+                              <tr>
+                                <td><strong>MAE:</strong></td>
+                                <td>
+                                  {% if model.latest_metric.mae %}
+                                    <span class="badge bg-light text-dark">{{ model.latest_metric.mae|floatformat:4 }}</span>
+                                  {% else %}
+                                    <span class="text-muted">N/A</span>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td><strong>R² Score:</strong></td>
+                                <td>
+                                  {% if model.latest_metric.r2_score %}
+                                    <span class="badge bg-light text-dark">{{ model.latest_metric.r2_score|floatformat:4 }}</span>
+                                  {% else %}
+                                    <span class="text-muted">N/A</span>
+                                  {% endif %}
+                                </td>
+                              </tr>
+                              </table>
+                          </div>
+                        </td>
+                        <td>
+                          <span class="badge bg-{% if model.status == 'completed' %}success{% elif model.status == 'training' %}warning{% else %}danger{% endif %}">
+                            {{ model.get_status_display }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewModelDetails({{ model.id }})">
+                              <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteModel({{ model.id }})">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                      <tr>
-                        <td><strong>Recall:</strong></td>
-                        <td>
-                          {% if model.latest_metric.recall %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.recall|floatformat:3 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td><strong>F1 Score:</strong></td>
-                        <td>
-                          {% if model.latest_metric.f1_score %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.f1_score|floatformat:3 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    </table>
-                  </div>
-                  {% else %}
-                  <div class="small">
-                    <h6 class="text-success mb-2">Regression Metrics</h6>
-                    <table class="table table-sm table-borderless mb-0">
-                      <tr>
-                        <td><strong>R² Score:</strong></td>
-                        <td>
-                          {% if model.latest_metric.r2_score %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.r2_score|floatformat:4 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td><strong>MSE:</strong></td>
-                        <td>
-                          {% if model.latest_metric.mse %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.mse|floatformat:4 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td><strong>RMSE:</strong></td>
-                        <td>
-                          {% if model.latest_metric.rmse %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.rmse|floatformat:4 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td><strong>MAE:</strong></td>
-                        <td>
-                          {% if model.latest_metric.mae %}
-                            <span class="badge bg-light text-dark">{{ model.latest_metric.mae|floatformat:4 }}</span>
-                          {% else %}
-                            <span class="text-muted">N/A</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    </table>
-                  </div>
-                  {% endif %}
-                </td>
-                <td>
-                  <span class="badge bg-{% if model.status == 'completed' %}success{% elif model.status == 'training' %}warning{% else %}danger{% endif %}">
-                    {{ model.get_status_display }}
-                  </span>
-                </td>
-                <td>
-                  <div class="btn-group">
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewModelDetails({{ model.id }})">
-                      <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteModel({{ model.id }})">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {% endif %}
+
+          </div>
+        {% endfor %}
+
+      {% else %}
+        <div class="card shadow-sm p-4">
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle"></i> No trained models yet. Configure and train a model to see metrics here.
+          </div>
         </div>
-        {% else %}
-        <div class="alert alert-info mb-0">
-          <i class="bi bi-info-circle"></i> No trained models yet. Configure and train a model to see metrics here.
-        </div>
-        {% endif %}
-      </div>
-    </section>    
-    
+      {% endif %}
+    </section>
     <!-- D) Visualization Quality -->
     <section id="visualizations" class="mb-5">
       <h4 class="text-primary mb-3"><i class="bi bi-bar-chart-line"></i> Visualization Quality</h4>
