@@ -1,59 +1,92 @@
-# Machine Learning Dashboard
+# CS456 Project: Machine Learning Web Platform
+
+This guide provides a step-by-step walkthrough to use the website.
 
 ---
 
-## Features
+## 1. Account Login / Sign Up
 
-### Data Ingestion & Preprocessing
-	•	Upload and parse .txt, .csv, and .xlsx files
-	•	Schema and size validation with error feedback
-	•	Handle missing values, encoding, and type casting
-	•	Train/validation/test split options with saved preprocessing pipelines
+1. On first visit, you will see the **Account Login Page**.  
+2. Enter your **username** and **password** if you already have an account.  
+3. If you do not have an account, click **Sign Up Now**.  
+4. On the **Sign Up Page**:  
+   - Create a **username**.  
+   - Create a **password** that is **unique from your username** and **at least 8 characters long**.  
+   - Confirm your password.  
+   - Click **Sign Up**.  
+5. After signing up, you will be automatically logged in.
 
-### Model Coverage
-	•	Supports Linear & Logistic Regression, Decision Trees, Random Forests, Bagging, Boosting, SVMs, and Deep Neural Networks
-	•	Modular API for adding new model types
-	•	Exposes key hyperparameters with sensible defaults
+---
 
-### Evaluation & Comparison
-	•	Task-appropriate metrics: Accuracy, Precision, Recall, F1, ROC-AUC, PR-AUC, MSE, MAE, R²
-	•	Train/test or cross-validation support
-	•	Ranked leaderboard with statistical summaries
+## 2. Dashboard Overview
 
-### Visualization
-	•	Interactive plots: ROC, PR, Confusion Matrix, Feature Importance, and Learning Curves
-	•	Clear, labeled visuals with consistent styling
-	•	Exportable comparison tables
+After logging in, you will see the **Dashboard Screen**.
 
-### Platform Architecture & UX
-	•	Smooth login and session management
-	•	Clear workflow: Upload → Preprocess → Model → Evaluate → Compare
-	•	Responsive layout with meaningful error messages
+### A. Data Ingestion and Pre-Processing
 
-### Code Quality & Engineering
-	•	Modular, well-documented code with type hints
-	•	Configurable via environment files
-	•	Unit and integration tests with sample data
-	•	Logging and dependency version pinning
+1. Under the **Data Ingestion and Pre-Processing** tab:  
+   - Upload your dataset (**CSV, Excel, or TXT** format).  
+   - Optionally, add a **description** for your dataset.  
+   - Click **Upload Dataset**.  
 
-### Reproducibility
-	•	Step-by-step setup instructions
-	•	requirements.txt or environment.yml included
-	•	Seed control and sample datasets
-	•	One-command startup (e.g., make up or docker compose up)
+2. You will be redirected to the **Data Set Dashboard**:  
+   - View dataset features: **total rows, columns, file size**, and **missing values**.  
 
-### Report & Technical Discussion
-	•	Detailed technical documentation and architecture diagram
-	•	Model comparison analysis (trees vs. SVM vs. DNN)
-	•	Discussion of trade-offs, limitations, and future work
+---
 
-### Responsible AI
-	•	Transparent data sourcing and licensing
-	•	Notes on class imbalance, leakage risks, and fairness considerations
-	•	Privacy and PII handling policies
+### B. Training a Model
 
-### Robustness & Error Handling
-	•	Handles large files, invalid schemas, and edge cases gracefully
-	•	Progress indicators and timeout management
-	•	Clear, actionable error messages with fallback defaults
+1. Scroll down to the **Actions** tab and click **Train Model**.  
+2. In the **Train Machine Learning Model View**:  
+   - **Select your target variable** from the dropdown.  
+   - **Select features** that the model will use.  
+   - Choose the **task type**: `Classification` or `Regression`.  
+   - Based on the task type, select the **algorithm** for training.  
+   - Under **Model Configuration**:  
+     - Enter a **Model Name**.  
+     - Optionally adjust:  
+       - **Test Size**  
+       - **Validation Size**  
+       - **Missing Value Strategy**  
+       - **Random State**  
+   - Click **Start Training**.  
+   - Training may take a few seconds.
+
+---
+
+### C. Viewing Model Results
+
+1. After training, the **Model View** displays:  
+   - **Classification Models**: Accuracy, Precision, Recall, F1 Score  
+   - **Regression Models**: Error Metrics, Accuracy, MSE, RMSE  
+2. Scroll down to see:  
+   - **Training Configuration**  
+   - **Model Configuration**  
+   - **Features Used**  
+   - **Visualizations**: ROC Curve, Confusion Matrix, Feature Importance  
+
+---
+
+## 3. Managing Data Sets
+
+1. From the **Dashboard**, click **ML Platform** in the top-left corner.  
+2. Scroll to **Your Data Sets**:  
+   - View uploaded datasets, descriptions, upload date, and processing status.  
+   - Delete a dataset if no longer needed.  
+
+---
+
+## 4. Model Evaluation and Comparison
+
+1. Under **Model Evaluation and Metrics**:  
+   - Models are categorized by type: `Classification` or `Regression`.  
+   - Models are sorted by **accuracy** (highest to lowest).  
+
+2. **Comparing Model Figures**:  
+   - Select **Model 1** and **Model 2** from dropdowns.  
+   - Choose the **Figure Type**: `ROC Curve`, `Confusion Matrix`, or `Feature Importance`.  
+   - View side-by-side visualizations to compare models.
+
+---
+
 
