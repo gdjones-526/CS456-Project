@@ -1,6 +1,7 @@
 from django import forms
 from core.models import UploadedFile, AIModel, Experiment
 from .ml_utils import ModelRegistry
+import pandas as pd
 
 class FileUploadForm(forms.ModelForm):
     class Meta:
@@ -115,14 +116,27 @@ class ModelTrainingForm(forms.ModelForm):
             })
         }
 
-    def __init__(self, user=None, *args, **kwargs):
+    features = forms.MultipleChoiceField(
+        required=True,
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'feature-checkbox'
+        }),
+        help_text='Select features to use for training'
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        
         if user:
             # Only show datasets belonging to this user
             self.fields['dataset'].queryset = UploadedFile.objects.filter(
                 user=user, 
                 processed=True
             )
+            
+        # Initialize an empty choices list for features
+        self.fields['features'].choices = []
 
     def clean(self):
         cleaned_data = super().clean()

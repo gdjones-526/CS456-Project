@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
 from django.core.files.base import ContentFile
+import inspect
 
 
 class DataValidator:
@@ -429,7 +430,8 @@ class ModelTrainer:
     
     def __init__(self, dataset_path, target_column, algorithm='random_forest', 
                  task_type='classification', test_size=0.2, validation_size=0.0,
-                 random_state=42, missing_value_strategy='mean', algorithm_params=None):
+                 random_state=None, missing_value_strategy='mean', algorithm_params=None,
+                 selected_features=None):
         """
         Initialize the trainer with consistent input contract
         
@@ -440,9 +442,10 @@ class ModelTrainer:
             task_type: 'classification' or 'regression'
             test_size: Test set proportion
             validation_size: Validation set proportion
-            random_state: Random seed
+            random_state: Random seed. If None, a random value will be generated.
             missing_value_strategy: Strategy for missing values
             algorithm_params: Custom hyperparameters
+            selected_features: List of column names to use as features. If None, all columns except target will be used.
         """
         self.dataset_path = dataset_path
         self.target_column = target_column
@@ -450,7 +453,16 @@ class ModelTrainer:
         self.task_type = task_type
         self.test_size = test_size
         self.validation_size = validation_size
+        # Generate random state if none provided
+        if random_state is None:
+            import random
+            random_state = random.randint(0, 100000)
         self.random_state = random_state
+        
+        # Create separate random states for different operations
+        self.split_random_state = random_state
+        self.model_random_state = random_state + 1  # Different seed for model initialization
+        
         self.missing_value_strategy = missing_value_strategy
         self.algorithm_params = algorithm_params or {}
         
@@ -468,6 +480,9 @@ class ModelTrainer:
         self.validator = DataValidator()
         # Detected task_type after inspecting the target column (set in load_and_preprocess_data)
         self.detected_task_type = None
+
+        # Features explicitly selected by the user (list or None)
+        self.selected_features = selected_features
         
     def load_and_preprocess_data(self):
         """Load dataset and perform preprocessing"""
@@ -498,6 +513,12 @@ class ModelTrainer:
         # Validate target
         target_validation = self.validator.check_target_column(df, self.target_column)
         print(f"Task type detected: {target_validation['task_type']}")
+        # Log basic target stats to help debug regression issues
+        try:
+            y_sample = df[self.target_column]
+            print(f"Target '{self.target_column}' stats -> dtype: {y_sample.dtype}, min: {y_sample.min()}, max: {y_sample.max()}, mean: {y_sample.mean() if pd.api.types.is_numeric_dtype(y_sample) else 'NA'}, unique: {y_sample.nunique()}")
+        except Exception:
+            pass
         # store detected task type so trainer can pick the correct model family
         n_unique = df[self.target_column].nunique()
         if pd.api.types.is_numeric_dtype(df[self.target_column]) and n_unique > 10:
@@ -516,11 +537,22 @@ class ModelTrainer:
         )
         
         # Separate features and target
-        X = df.drop(columns=[self.target_column])
+        if self.selected_features:
+            # Verify all selected features exist in the dataset
+            missing_features = [f for f in self.selected_features if f not in df.columns]
+            if missing_features:
+                raise ValueError(f"Selected features not found in dataset: {missing_features}")
+            X = df[self.selected_features]
+        else:
+            # If no features specified, use all columns except target
+            X = df.drop(columns=[self.target_column])
+        
+        # Work on a copy to avoid SettingWithCopyWarning when modifying columns
+        X = X.copy()
+
         # Always ensure it's a DataFrame
         if isinstance(X, pd.Series):
             X = X.to_frame()
-
 
         y = df[self.target_column].values
 
@@ -555,15 +587,15 @@ class ModelTrainer:
         # Split data
         if self.validation_size > 0:
             X_temp, self.X_test, y_temp, self.y_test = train_test_split(
-                X, y, test_size=self.test_size, random_state=self.random_state
+                X, y, test_size=self.test_size, random_state=self.split_random_state
             )
             val_size_adjusted = self.validation_size / (1 - self.test_size)
             self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
-                X_temp, y_temp, test_size=val_size_adjusted, random_state=self.random_state
+                X_temp, y_temp, test_size=val_size_adjusted, random_state=self.split_random_state + 1
             )
         else:
             self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-                X, y, test_size=self.test_size, random_state=self.random_state
+                X, y, test_size=self.test_size, random_state=self.split_random_state
             )
         
         # Scale features
@@ -581,6 +613,7 @@ class ModelTrainer:
             validation_split=self.validation_size,
             random_state=self.random_state
         )
+
         
         return True
     
@@ -621,11 +654,19 @@ class ModelTrainer:
         # Merge default params with custom params
         params = {**model_info['default_params'], **self.algorithm_params}
         
-        # Handle random_state for models that don't support it
-        if 'random_state' in params and model_info['class'] == LinearRegression:
-            params.pop('random_state')
+        # Filter params to only those accepted by the estimator's __init__ signature
+        try:
+            sig = inspect.signature(model_info['class'].__init__)
+            accepted_params = {name for name, p in sig.parameters.items() if name != 'self' and p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)}
+            params = {k: v for k, v in params.items() if k in accepted_params}
+        except Exception:
+            # If signature inspection fails, keep params as-is
+            pass
         
-        # Initialize and train model
+        # Initialize and train model with a unique random state
+        if 'random_state' in params:
+            params['random_state'] = self.model_random_state
+            
         self.model = model_info['class'](**params)
         self.model.fit(self.X_train, self.y_train)
         
@@ -640,6 +681,9 @@ class ModelTrainer:
         effective_task = self.detected_task_type or self.task_type
 
         y_pred = self.model.predict(self.X_test)
+
+        print("y_test range:", np.min(self.y_test), np.max(self.y_test))
+        print("y_pred range:", np.min(y_pred), np.max(y_pred))
 
         if effective_task == 'classification':
             metrics = {
@@ -657,6 +701,13 @@ class ModelTrainer:
                 'r2_score': r2_score(self.y_test, y_pred),
             }
             cm = None
+
+        print("y_test sample:", self.y_test[:5])
+        print("y_pred sample:", y_pred[:5])
+        print("y_test range:", np.min(self.y_test), "-", np.max(self.y_test))
+        print("y_pred range:", np.min(y_pred), "-", np.max(y_pred))
+        print("Manual MAE check:", np.mean(np.abs(self.y_test - y_pred)))
+        print("Sklearn MAE check:", mean_absolute_error(self.y_test, y_pred))
         
         return metrics, cm, y_pred
     
@@ -684,14 +735,154 @@ class ModelTrainer:
         self.preprocessing_config.save(config_path)
         
         return output_path
+
+    def generate_actual_vs_predicted_plot(self):
+        """
+        Generate an 'Actual vs. Predicted' plot.
+        This is the most important performance plot for regression.
+        """
+        # This plot is only for regression tasks
+        effective_task = self.task_type
+        if effective_task != 'regression':
+            return None
+
+        y_true = self.y_test
+        y_pred = self.model.predict(self.X_test)
+
+        plt.figure(figsize=(8, 8))
+        sns.scatterplot(x=y_true, y=y_pred, alpha=0.6)
+        
+        # Add the "perfect prediction" line (y=x)
+        min_val = min(y_true.min(), y_pred.min())
+        max_val = max(y_true.max(), y_pred.max())
+        plt.plot([min_val, max_val], [min_val, max_val], color='red', linestyle='--', lw=2)
+        
+        plt.title('Actual vs. Predicted Values', fontsize=14, weight='bold')
+        plt.xlabel('Actual Values', fontsize=12)
+        plt.ylabel('Predicted Values', fontsize=12)
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
+        buffer.seek(0)
+        plt.close()
+
+        return ContentFile(buffer.read(), name='actual_vs_predicted.png')
+
+    def generate_residuals_vs_fitted_plot(self):
+        """
+        Generate a 'Residuals vs. Fitted' plot.
+        This is the most important diagnostic plot for regression.
+        """
+        # This plot is only for regression tasks
+        effective_task = self.task_type
+        if effective_task != 'regression':
+            return None
+
+        y_true = self.y_test
+        y_pred = self.model.predict(self.X_test)
+        
+        # Calculate residuals (Residual = Actual - Predicted)
+        residuals = y_true - y_pred
+
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=y_pred, y=residuals, alpha=0.6)
+        
+        # Add the "zero error" line
+        plt.axhline(y=0, color='red', linestyle='--', lw=2)
+        
+        plt.title('Residuals vs. Fitted Values', fontsize=14, weight='bold')
+        plt.xlabel('Fitted (Predicted) Values', fontsize=12)
+        plt.ylabel('Residuals (Error)', fontsize=12)
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
+        buffer.seek(0)
+        plt.close()
+
+        return ContentFile(buffer.read(), name='residuals_vs_fitted.png')
+
+    # --- UPDATED FUNCTION ---
+    
+    def generate_feature_importance_plot(self):
+        """
+        Generate feature importance plot for models with
+        .feature_importances_ (like Random Forest) 
+        OR .coef_ (like Lasso, Linear/Logistic Regression).
+        """
+        importances = None
+        title_suffix = ""
+        feature_names = getattr(self, 'feature_names', [])
+
+        if hasattr(self.model, 'feature_importances_'):
+            # For tree-based models (e.g., Random Forest)
+            importances = self.model.feature_importances_
+            title_suffix = "(from .feature_importances_)"
+        
+        elif hasattr(self.model, 'coef_'):
+            # For linear models (e.g., Lasso, Linear/Logistic Regression)
+            coef = self.model.coef_
+            
+            if coef.ndim > 1:
+                # Handle multi-class classification (e.g., Logistic Regression)
+                # We take the average absolute coefficient across all classes
+                importances = np.mean(np.abs(coef), axis=0)
+            else:
+                # Handle regression (Lasso, Linear) or binary classification
+                importances = np.abs(coef)
+            
+            title_suffix = "(from .coef_)"
+        
+        else:
+            # Model type doesn't support easy feature importance (e.g., k-NN)
+            print("Model does not have .feature_importances_ or .coef_ attribute.")
+            return None
+
+        # If feature names list is empty, create generic names
+        if not feature_names or len(feature_names) != len(importances):
+             feature_names = [f'feature_{i}' for i in range(len(importances))]
+
+        # Get top 15 features
+        top_n = min(len(importances), 15)
+        indices = np.argsort(importances)[::-1][:top_n]
+        
+        plt.figure(figsize=(10, 7))
+        plt.title(f'Top {top_n} Feature Importances {title_suffix}', fontsize=14, weight='bold')
+        
+        # Plot horizontal bar chart for better readability of labels
+        plt.barh(range(len(indices)), importances[indices][::-1], color='steelblue', align='center')
+        plt.yticks(range(len(indices)), 
+                   [feature_names[i] for i in indices[::-1]])
+        
+        plt.ylabel('Features', fontsize=12)
+        plt.xlabel('Importance (Absolute Value)', fontsize=12)
+        plt.grid(alpha=0.3, axis='x')
+        plt.tight_layout()
+        
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
+        buffer.seek(0)
+        plt.close()
+        
+        return ContentFile(buffer.read(), name='feature_importance.png')
+
+    # --- Your existing functions ---
     
     def generate_confusion_matrix_plot(self, max_classes=10):
         """Generate simplified confusion matrix for classification"""
-        effective_task = self.detected_task_type or self.task_type
+        effective_task = self.task_type # Use self.task_type consistently
         if effective_task != 'classification':
             return None
         
-        _, cm, y_test = self.evaluate_model()
+        # Assuming self.evaluate_model() returns (metrics, cm, y_test)
+        # You might need to adjust this if evaluate_model isn't defined yet
+        # For now, let's predict to get cm
+        y_pred = self.model.predict(self.X_test)
+        y_test = self.y_test
+        cm = confusion_matrix(y_test, y_pred)
 
         labels = np.unique(y_test)
         
@@ -704,10 +895,10 @@ class ModelTrainer:
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                     xticklabels=labels,
                     yticklabels=labels,
-                    cbar=False)  # remove colorbar to simplify
-        plt.title('Confusion Matrix')
-        plt.ylabel('True Label')
-        plt.xlabel('Predicted Label')
+                    cbar=False)
+        plt.title('Confusion Matrix', fontsize=14, weight='bold')
+        plt.ylabel('True Label', fontsize=12)
+        plt.xlabel('Predicted Label', fontsize=12)
         plt.xticks(rotation=45)
         plt.yticks(rotation=0)
         plt.tight_layout()
@@ -718,7 +909,6 @@ class ModelTrainer:
         plt.close()
         
         return ContentFile(buffer.read(), name='confusion_matrix.png')
-
     
     def generate_roc_curve_plot(self):
         """Generate ROC curve for classification models with probability output"""
@@ -735,27 +925,45 @@ class ModelTrainer:
         y_true = self.y_test
 
         plt.figure(figsize=(8, 6))
-        if y_prob.shape[1] == 2:
+        
+        # Use label_binarize for robust multiclass handling
+        from sklearn.preprocessing import label_binarize
+        classes = self.model.classes_
+        y_true_bin = label_binarize(y_true, classes=classes)
+
+        if len(classes) == 2:
             # Binary classification
-            fpr, tpr, _ = roc_curve(y_true, y_prob[:, 1])
+            fpr, tpr, _ = roc_curve(y_true_bin, y_prob[:, 1])
             roc_auc = auc(fpr, tpr)
             plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
         else:
             # Multiclass — average ROC
             max_classes_to_plot = 10
-            for i in range(min(y_prob.shape[1], max_classes_to_plot)):
-                fpr, tpr, _ = roc_curve((y_true == i).astype(int), y_prob[:, i])
-                roc_auc = auc(fpr, tpr)
-                plt.plot(fpr, tpr, lw=2, label=f'Class {i} (AUC = {roc_auc:.2f})')
-                
-        plt.figure(figsize=(8,4))
-        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+            # Plot micro-average
+            fpr, tpr, _ = roc_curve(y_true_bin.ravel(), y_prob.ravel())
+            roc_auc = auc(fpr, tpr)
+            plt.plot(fpr, tpr, color='deeppink', linestyle=':', lw=4, label=f'Micro-average (AUC = {roc_auc:.2f})')
+
+            # Plot macro-average
+            from sklearn.metrics import roc_auc_score
+            n_classes = len(classes)
+            all_fpr = np.unique(np.concatenate([roc_curve(y_true_bin[:, i], y_prob[:, i])[0] for i in range(n_classes)]))
+            mean_tpr = np.zeros_like(all_fpr)
+            for i in range(n_classes):
+                fpr, tpr, _ = roc_curve(y_true_bin[:, i], y_prob[:, i])
+                mean_tpr += np.interp(all_fpr, fpr, tpr)
+            mean_tpr /= n_classes
+            roc_auc = auc(all_fpr, mean_tpr)
+            plt.plot(all_fpr, mean_tpr, color='navy', lw=2, label=f'Macro-average (AUC = {roc_auc:.2f})')
+
+
+        plt.plot([0, 1], [0, 1], color='grey', lw=2, linestyle='--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
         plt.xlabel('False Positive Rate', fontsize=12)
         plt.ylabel('True Positive Rate', fontsize=12)
         plt.title('Receiver Operating Characteristic (ROC) Curve', fontsize=14, weight='bold')
-        plt.legend(loc="lower right", fontsize=8, ncol=2)
+        plt.legend(loc="lower right", fontsize=10)
         plt.grid(alpha=0.3)
         plt.tight_layout()
 
@@ -766,32 +974,6 @@ class ModelTrainer:
         plt.close()
 
         return ContentFile(buffer.read(), name='roc_curve.png')
-    
-    def generate_feature_importance_plot(self):
-        """Generate feature importance plot"""
-        if not hasattr(self.model, 'feature_importances_'):
-            return None
-        
-        importances = self.model.feature_importances_
-        indices = np.argsort(importances)[::-1][:10]
-        
-        plt.figure(figsize=(8, 4))
-        plt.title('Top 10 Feature Importances')
-        plt.bar(range(len(indices)), importances[indices])
-        plt.xticks(range(len(indices)), 
-                   [self.feature_names[i] for i in indices], 
-                   rotation=45, ha='right')
-        plt.xlabel('Features')
-        plt.ylabel('Importance')
-        plt.tight_layout()
-        
-        buffer = BytesIO()
-        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
-        buffer.seek(0)
-        plt.close()
-        
-        return ContentFile(buffer.read(), name='feature_importance.png')
-
 
 def load_model(model_path):
     """Load a saved model"""

@@ -83,11 +83,14 @@
             <div class="mb-3">
               <label class="form-label fw-bold">Select Features</label>
               <div class="row">
-                {% for col in columns %}
+                {{ form.features.errors }}
+                {% for value, label in form.features.field.choices %}
                   <div class="col-md-3 col-6 mb-2">
                     <div class="form-check">
-                      <input class="form-check-input feature-checkbox" type="checkbox" value="{{ col }}" id="feature_{{ forloop.counter }}" name="features">
-                      <label class="form-check-label" for="feature_{{ forloop.counter }}">{{ col }}</label>
+       <input type="checkbox" name="{{ form.features.name }}" value="{{ value }}" 
+         id="id_features_{{ forloop.counter }}" class="form-check-input feature-checkbox"
+         {% if form.features.value and value in form.features.value %}checked{% endif %}>
+                      <label class="form-check-label" for="id_features_{{ forloop.counter }}">{{ label }}</label>
                     </div>
                   </div>
                 {% endfor %}

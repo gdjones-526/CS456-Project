@@ -14,6 +14,7 @@ from django.http import JsonResponse
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout, authenticate
 from django.views.decorators.csrf import csrf_exempt
+from collections import defaultdict # <-- Import this
 
 @login_required
 def upload_file(request):
@@ -83,10 +84,51 @@ def dashboard(request):
     files = UploadedFile.objects.filter(user=request.user).order_by('-uploaded_at')
     trained_models = AIModel.objects.filter(user=request.user).prefetch_related('metrics', 'figures')
     
-    # Attach latest metric and figures to each model
+    grouped_models = defaultdict(lambda: {
+        'classification': [],
+        'regression': []
+    })
+
     for model in trained_models:
+        # Attach latest metric and figures (as you did before)
         model.latest_metric = model.metrics.first()
-        model.visualizations = model.figures.all()  # e.g., ROC, Confusion Matrix images
+        model.visualizations = model.figures.all()
+        
+        dataset_name = model.dataset.original_name
+        
+        # Add model to the correct list
+        if model.parameters['task_type'] == 'classification':
+            grouped_models[dataset_name]['classification'].append(model)
+        else:
+            grouped_models[dataset_name]['regression'].append(model)
+
+    sorted_grouped_models = {}
+    for dataset_name, models in grouped_models.items():
+        
+        # Sort classification models by Accuracy (descending)
+        # We handle 'None' values by treating them as -1 (lowest accuracy)
+        sorted_class = sorted(
+            models['classification'],
+            key=lambda m: m.latest_metric.accuracy if m.latest_metric and m.latest_metric.accuracy is not None else -1,
+            reverse=True  # Highest accuracy first
+        )
+        
+        # Sort regression models by MAE (ascending)
+        # We handle 'None' values by treating them as infinity (highest error)
+        sorted_reg = sorted(
+            models['regression'],
+            key=lambda m: m.latest_metric.mae if m.latest_metric and m.latest_metric.mae is not None else float('inf'),
+            reverse=False  # Lowest error first
+        )
+        
+        # Add the sorted lists to our new dictionary
+        if sorted_class or sorted_reg: # Only add datasets that have models
+            sorted_grouped_models[dataset_name] = {
+                'classification': sorted_class,
+                'regression': sorted_reg
+            }
+
+    # --- END: Modified Model Sorting Logic ---
 
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
@@ -112,6 +154,7 @@ def dashboard(request):
         'form': form,
         'files': files,
         'trained_models': trained_models,
+        'grouped_models': sorted_grouped_models,
     }
     return render(request, 'application/dashboard.html', context)
 
@@ -247,10 +290,35 @@ def train_model(request, dataset_id, algorithm=None):
         messages.error(request, 'Dataset is not yet processed. Please wait.')
         return redirect('application/file_detail', pk=dataset_id)
     
-    # Get dataset columns for target selection
+    # Get dataset columns for target selection and feature choices
     try:
         df = load_dataframe(dataset)
         columns = df.columns.tolist()
+        feature_choices = [(col, col) for col in columns]
+
+        # Determine sensible default features: prefer numeric columns, otherwise first up to 5 columns
+        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        if numeric_cols:
+            default_features = numeric_cols
+        else:
+            default_features = columns[:5]
+
+        # Initialize form with the dataset and choices
+        initial_data = {'dataset': dataset}
+
+        # For GET requests pre-select sensible defaults; for POST keep user's selection
+        if request.method == 'POST':
+            form = ModelTrainingForm(data=request.POST, initial=initial_data, user=request.user)
+        else:
+            initial_data['features'] = default_features
+            form = ModelTrainingForm(initial=initial_data, user=request.user)
+
+        # Set feature choices before processing the form and ensure initial values are shown
+        form.fields['features'].choices = feature_choices
+        # Only set the field's initial selection if not POST (do not override submitted values)
+        if request.method != 'POST':
+            form.fields['features'].initial = default_features
+            
     except Exception as e:
         messages.error(request, f'Error loading dataset: {str(e)}')
         return redirect('file_detail', pk=dataset_id)
@@ -279,13 +347,8 @@ def train_model(request, dataset_id, algorithm=None):
     #  ---------------
 
     if request.method == 'POST':
-
-        print("POST data:", request.POST)
-
-        form = ModelTrainingForm(user=request.user, data=request.POST)
-
+        # Check validation and report errors before proceeding
         if not form.is_valid():
-            print("Form errors:", form.errors)
             for field, errors in form.errors.items():
                 field_label = form.fields.get(field).label if form.fields.get(field) else field
                 for error in errors:
@@ -318,6 +381,9 @@ def train_model(request, dataset_id, algorithm=None):
                 test_size_val = form.cleaned_data.get('test_size', 0.2)
                 random_state_val = form.cleaned_data.get('random_state', 42)
 
+                # Get selected features from the form
+                selected_features = form.cleaned_data.get('features', [])
+                
                 # Initialize trainer
                 trainer = ModelTrainer(
                     dataset_path=dataset.file.path,
@@ -328,6 +394,7 @@ def train_model(request, dataset_id, algorithm=None):
                     validation_size=form.cleaned_data.get('validation_size', 0.0),
                     random_state=random_state_val,
                     missing_value_strategy=form.cleaned_data.get('missing_value_strategy', 'mean'),
+                    selected_features=selected_features
                 )
                 
                 # Load and preprocess data
@@ -373,25 +440,84 @@ def train_model(request, dataset_id, algorithm=None):
                 model.model_file = f'trained_models/{model_filename}'
                 
                 # Generate and save confusion matrix
-                cm_plot = trainer.generate_confusion_matrix_plot()
-                if cm_plot:
-                    figure = Figure.objects.create(
-                        model=model,
-                        description='Confusion Matrix'
-                    )
-                    figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+                # cm_plot = trainer.generate_confusion_matrix_plot()
+                # if cm_plot:
+                #     figure = Figure.objects.create(
+                #         model=model,
+                #         description='Confusion Matrix'
+                #     )
+                #     figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
 
-                # Generate and save ROC curve (classification only)
-                roc_plot = trainer.generate_roc_curve_plot()
-                if roc_plot:
-                    figure = Figure.objects.create(
-                        model=model,
-                        description='ROC Curve'
-                    )
-                    figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
+                # # Generate and save ROC curve (classification only)
+                # roc_plot = trainer.generate_roc_curve_plot()
+                # if roc_plot:
+                #     figure = Figure.objects.create(
+                #         model=model,
+                #         description='ROC Curve'
+                #     )
+                #     figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
 
                 
+                # # Generate and save feature importance (if applicable)
+                # fi_plot = trainer.generate_feature_importance_plot()
+                # if fi_plot:
+                #     figure = Figure.objects.create(
+                #         model=model,
+                #         description='Feature Importance'
+                #     )
+                #     figure.figure_file.save(f'feature_importance_{model.id}.png', fi_plot)
+                
+                # # Update model status
+                # model.status = 'completed'
+                # model.save()
+                
+                # --- Task-Specific Figure Generation ---
+                # Get the task type from the trainer object
+                task_type = trainer.task_type 
+
+                if task_type == 'classification':
+                    # Generate and save Confusion Matrix (classification only)
+                    cm_plot = trainer.generate_confusion_matrix_plot()
+                    if cm_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='Confusion Matrix'
+                        )
+                        figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
+
+                    # Generate and save ROC curve (classification only)
+                    roc_plot = trainer.generate_roc_curve_plot()
+                    if roc_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='ROC Curve'
+                        )
+                        figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
+                
+                elif task_type == 'regression':
+                    # Generate and save Actual vs. Predicted (regression only)
+                    avp_plot = trainer.generate_actual_vs_predicted_plot()
+                    if avp_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='Actual vs. Predicted'
+                        )
+                        figure.figure_file.save(f'actual_vs_predicted_{model.id}.png', avp_plot)
+
+                    # Generate and save Residuals vs. Fitted (regression only)
+                    rvf_plot = trainer.generate_residuals_vs_fitted_plot()
+                    if rvf_plot:
+                        figure = Figure.objects.create(
+                            model=model,
+                            description='Residuals vs. Fitted'
+                        )
+                        figure.figure_file.save(f'residuals_vs_fitted_{model.id}.png', rvf_plot)
+
+                
+                # --- Universal Figure Generation ---
+                
                 # Generate and save feature importance (if applicable)
+                # This function works for both regression and classification
                 fi_plot = trainer.generate_feature_importance_plot()
                 if fi_plot:
                     figure = Figure.objects.create(
@@ -415,10 +541,9 @@ def train_model(request, dataset_id, algorithm=None):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        initial_data = {'dataset': dataset}
-        if algorithm:
-            initial_data['algorithm'] = algorithm
-        form = ModelTrainingForm(user=request.user, initial=initial_data)
+        # form was already initialized above (with feature choices set)
+        # No action needed here for GET
+        pass
     
     context = {
         'form': form,
@@ -438,13 +563,59 @@ def model_detail(request, pk):
     metrics = model.metrics.first()
     figures = model.figures.all()
     
+    # Load model file to get feature names and additional info
+    feature_names = []
+    preprocessing_info = {}
+    
+    if model.model_file:
+        try:
+            model_path = model.model_file.path
+            model_data = joblib.load(model_path)
+            
+            # Extract feature names from saved model
+            feature_names = model_data.get('feature_names', [])
+            
+            # Extract preprocessing configuration
+            preprocessing_config = model_data.get('preprocessing_config', {})
+            preprocessing_info = {
+                'missing_value_strategy': preprocessing_config.get('missing_value_strategy', 'N/A'),
+                'train_test_split': preprocessing_config.get('train_test_split', 0.2),
+                'validation_split': preprocessing_config.get('validation_split', 0.0),
+                'random_state': preprocessing_config.get('random_state', 42),
+                'categorical_columns': preprocessing_config.get('categorical_columns', []),
+                'numeric_columns': preprocessing_config.get('numeric_columns', []),
+            }
+            
+        except Exception as e:
+            print(f"Error loading model file: {e}")
+            # Fallback: try to get from parameters if available
+            if model.parameters and isinstance(model.parameters, dict):
+                feature_names = model.parameters.get('feature_columns', [])
+    
+    # Get dataset info if available
+    dataset_info = None
+    if model.dataset:
+        try:
+            from .ml_utils import load_dataframe
+            df = load_dataframe(model.dataset)
+            dataset_info = {
+                'rows': len(df),
+                'columns': len(df.columns),
+                'all_columns': df.columns.tolist(),
+            }
+        except Exception as e:
+            print(f"Error loading dataset: {e}")
+    
     context = {
         'model': model,
         'metrics': metrics,
         'figures': figures,
+        'feature_names': feature_names,
+        'num_features': len(feature_names),
+        'preprocessing_info': preprocessing_info,
+        'dataset_info': dataset_info,
     }
     return render(request, 'application/model_detail.html', context)
-
 
 @login_required
 def model_list(request):
