@@ -891,7 +891,7 @@ class ModelTrainer:
             labels = labels[:max_classes]
             cm = cm[:max_classes, :max_classes]
         
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(8, 4))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                     xticklabels=labels,
                     yticklabels=labels,
@@ -968,6 +968,7 @@ class ModelTrainer:
         plt.tight_layout()
 
         buffer = BytesIO()
+
         plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
         buffer.seek(0)
         plt.close()
