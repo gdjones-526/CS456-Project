@@ -1,0 +1,42 @@
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: #f8f9fa;
+    }
+    
+    .navbar-custom {
+      background-color: #212529;
+      box-shadow: 0 2px 4px rgba(0,0,0,.1);
+    }
+    
+    .main-container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .card {
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .model-card {
+      transition: all 0.3s ease;
+      cursor: pointer;
+      height: 100%;
+    }
+    
+    .model-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 20px rgba(0,0,0,.15);
+    }
+    
+    .metric-badge {
+      font-size: 1.5rem;
+      padding: 0.5rem 1rem;
+    }
+    
+    .filter-buttons .btn {
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }

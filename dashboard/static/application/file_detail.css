@@ -1,0 +1,61 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-custom {
+    background-color: #212529;
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
+.main-container {
+    max-width: 1400px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #0d6efd;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table-preview {
+    overflow-x: auto;
+    max-height: 500px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.column-badge {
+    display: inline-block;
+    margin: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    background-color: #e9ecef;
+    border-radius: 0.375rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.action-button {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
