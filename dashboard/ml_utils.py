@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
 from django.core.files.base import ContentFile
+import inspect
 
 
 class DataValidator:
@@ -429,7 +430,8 @@ class ModelTrainer:
     
     def __init__(self, dataset_path, target_column, algorithm='random_forest', 
                  task_type='classification', test_size=0.2, validation_size=0.0,
-                 random_state=42, missing_value_strategy='mean', algorithm_params=None):
+                 random_state=None, missing_value_strategy='mean', algorithm_params=None,
+                 selected_features=None):
         """
         Initialize the trainer with consistent input contract
         
@@ -440,9 +442,10 @@ class ModelTrainer:
             task_type: 'classification' or 'regression'
             test_size: Test set proportion
             validation_size: Validation set proportion
-            random_state: Random seed
+            random_state: Random seed. If None, a random value will be generated.
             missing_value_strategy: Strategy for missing values
             algorithm_params: Custom hyperparameters
+            selected_features: List of column names to use as features. If None, all columns except target will be used.
         """
         self.dataset_path = dataset_path
         self.target_column = target_column
@@ -450,7 +453,16 @@ class ModelTrainer:
         self.task_type = task_type
         self.test_size = test_size
         self.validation_size = validation_size
+        # Generate random state if none provided
+        if random_state is None:
+            import random
+            random_state = random.randint(0, 100000)
         self.random_state = random_state
+        
+        # Create separate random states for different operations
+        self.split_random_state = random_state
+        self.model_random_state = random_state + 1  # Different seed for model initialization
+        
         self.missing_value_strategy = missing_value_strategy
         self.algorithm_params = algorithm_params or {}
         
@@ -468,6 +480,9 @@ class ModelTrainer:
         self.validator = DataValidator()
         # Detected task_type after inspecting the target column (set in load_and_preprocess_data)
         self.detected_task_type = None
+
+        # Features explicitly selected by the user (list or None)
+        self.selected_features = selected_features
         
     def load_and_preprocess_data(self):
         """Load dataset and perform preprocessing"""
@@ -498,6 +513,12 @@ class ModelTrainer:
         # Validate target
         target_validation = self.validator.check_target_column(df, self.target_column)
         print(f"Task type detected: {target_validation['task_type']}")
+        # Log basic target stats to help debug regression issues
+        try:
+            y_sample = df[self.target_column]
+            print(f"Target '{self.target_column}' stats -> dtype: {y_sample.dtype}, min: {y_sample.min()}, max: {y_sample.max()}, mean: {y_sample.mean() if pd.api.types.is_numeric_dtype(y_sample) else 'NA'}, unique: {y_sample.nunique()}")
+        except Exception:
+            pass
         # store detected task type so trainer can pick the correct model family
         n_unique = df[self.target_column].nunique()
         if pd.api.types.is_numeric_dtype(df[self.target_column]) and n_unique > 10:
@@ -516,11 +537,22 @@ class ModelTrainer:
         )
         
         # Separate features and target
-        X = df.drop(columns=[self.target_column])
+        if self.selected_features:
+            # Verify all selected features exist in the dataset
+            missing_features = [f for f in self.selected_features if f not in df.columns]
+            if missing_features:
+                raise ValueError(f"Selected features not found in dataset: {missing_features}")
+            X = df[self.selected_features]
+        else:
+            # If no features specified, use all columns except target
+            X = df.drop(columns=[self.target_column])
+        
+        # Work on a copy to avoid SettingWithCopyWarning when modifying columns
+        X = X.copy()
+
         # Always ensure it's a DataFrame
         if isinstance(X, pd.Series):
             X = X.to_frame()
-
 
         y = df[self.target_column].values
 
@@ -555,15 +587,15 @@ class ModelTrainer:
         # Split data
         if self.validation_size > 0:
             X_temp, self.X_test, y_temp, self.y_test = train_test_split(
-                X, y, test_size=self.test_size, random_state=self.random_state
+                X, y, test_size=self.test_size, random_state=self.split_random_state
             )
             val_size_adjusted = self.validation_size / (1 - self.test_size)
             self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
-                X_temp, y_temp, test_size=val_size_adjusted, random_state=self.random_state
+                X_temp, y_temp, test_size=val_size_adjusted, random_state=self.split_random_state + 1
             )
         else:
             self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-                X, y, test_size=self.test_size, random_state=self.random_state
+                X, y, test_size=self.test_size, random_state=self.split_random_state
             )
         
         # Scale features
@@ -581,6 +613,7 @@ class ModelTrainer:
             validation_split=self.validation_size,
             random_state=self.random_state
         )
+
         
         return True
     
@@ -621,11 +654,19 @@ class ModelTrainer:
         # Merge default params with custom params
         params = {**model_info['default_params'], **self.algorithm_params}
         
-        # Handle random_state for models that don't support it
-        if 'random_state' in params and model_info['class'] == LinearRegression:
-            params.pop('random_state')
+        # Filter params to only those accepted by the estimator's __init__ signature
+        try:
+            sig = inspect.signature(model_info['class'].__init__)
+            accepted_params = {name for name, p in sig.parameters.items() if name != 'self' and p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)}
+            params = {k: v for k, v in params.items() if k in accepted_params}
+        except Exception:
+            # If signature inspection fails, keep params as-is
+            pass
         
-        # Initialize and train model
+        # Initialize and train model with a unique random state
+        if 'random_state' in params:
+            params['random_state'] = self.model_random_state
+            
         self.model = model_info['class'](**params)
         self.model.fit(self.X_train, self.y_train)
         
@@ -640,6 +681,9 @@ class ModelTrainer:
         effective_task = self.detected_task_type or self.task_type
 
         y_pred = self.model.predict(self.X_test)
+
+        print("y_test range:", np.min(self.y_test), np.max(self.y_test))
+        print("y_pred range:", np.min(y_pred), np.max(y_pred))
 
         if effective_task == 'classification':
             metrics = {
@@ -657,6 +701,13 @@ class ModelTrainer:
                 'r2_score': r2_score(self.y_test, y_pred),
             }
             cm = None
+
+        print("y_test sample:", self.y_test[:5])
+        print("y_pred sample:", y_pred[:5])
+        print("y_test range:", np.min(self.y_test), "-", np.max(self.y_test))
+        print("y_pred range:", np.min(y_pred), "-", np.max(y_pred))
+        print("Manual MAE check:", np.mean(np.abs(self.y_test - y_pred)))
+        print("Sklearn MAE check:", mean_absolute_error(self.y_test, y_pred))
         
         return metrics, cm, y_pred
     

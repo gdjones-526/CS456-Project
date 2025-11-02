@@ -247,10 +247,35 @@ def train_model(request, dataset_id, algorithm=None):
         messages.error(request, 'Dataset is not yet processed. Please wait.')
         return redirect('application/file_detail', pk=dataset_id)
     
-    # Get dataset columns for target selection
+    # Get dataset columns for target selection and feature choices
     try:
         df = load_dataframe(dataset)
         columns = df.columns.tolist()
+        feature_choices = [(col, col) for col in columns]
+
+        # Determine sensible default features: prefer numeric columns, otherwise first up to 5 columns
+        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        if numeric_cols:
+            default_features = numeric_cols
+        else:
+            default_features = columns[:5]
+
+        # Initialize form with the dataset and choices
+        initial_data = {'dataset': dataset}
+
+        # For GET requests pre-select sensible defaults; for POST keep user's selection
+        if request.method == 'POST':
+            form = ModelTrainingForm(data=request.POST, initial=initial_data, user=request.user)
+        else:
+            initial_data['features'] = default_features
+            form = ModelTrainingForm(initial=initial_data, user=request.user)
+
+        # Set feature choices before processing the form and ensure initial values are shown
+        form.fields['features'].choices = feature_choices
+        # Only set the field's initial selection if not POST (do not override submitted values)
+        if request.method != 'POST':
+            form.fields['features'].initial = default_features
+            
     except Exception as e:
         messages.error(request, f'Error loading dataset: {str(e)}')
         return redirect('file_detail', pk=dataset_id)
@@ -279,13 +304,8 @@ def train_model(request, dataset_id, algorithm=None):
     #  ---------------
 
     if request.method == 'POST':
-
-        print("POST data:", request.POST)
-
-        form = ModelTrainingForm(user=request.user, data=request.POST)
-
+        # Check validation and report errors before proceeding
         if not form.is_valid():
-            print("Form errors:", form.errors)
             for field, errors in form.errors.items():
                 field_label = form.fields.get(field).label if form.fields.get(field) else field
                 for error in errors:
@@ -318,6 +338,9 @@ def train_model(request, dataset_id, algorithm=None):
                 test_size_val = form.cleaned_data.get('test_size', 0.2)
                 random_state_val = form.cleaned_data.get('random_state', 42)
 
+                # Get selected features from the form
+                selected_features = form.cleaned_data.get('features', [])
+                
                 # Initialize trainer
                 trainer = ModelTrainer(
                     dataset_path=dataset.file.path,
@@ -328,6 +351,7 @@ def train_model(request, dataset_id, algorithm=None):
                     validation_size=form.cleaned_data.get('validation_size', 0.0),
                     random_state=random_state_val,
                     missing_value_strategy=form.cleaned_data.get('missing_value_strategy', 'mean'),
+                    selected_features=selected_features
                 )
                 
                 # Load and preprocess data
@@ -415,10 +439,9 @@ def train_model(request, dataset_id, algorithm=None):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        initial_data = {'dataset': dataset}
-        if algorithm:
-            initial_data['algorithm'] = algorithm
-        form = ModelTrainingForm(user=request.user, initial=initial_data)
+        # form was already initialized above (with feature choices set)
+        # No action needed here for GET
+        pass
     
     context = {
         'form': form,
