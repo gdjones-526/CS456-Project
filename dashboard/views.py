@@ -70,7 +70,7 @@ def analyze_selection(request, dataset_id):
             if not features or not target:
                 return JsonResponse({"success": False, "error": "Missing features or target variable."})
 
-            # Load dataset (assuming you have a Dataset model)
+            # Load dataset
             dataset = Dataset.objects.get(pk=dataset_id)
             df = pd.read_csv(dataset.file.path)
 
@@ -101,7 +101,7 @@ def dashboard(request):
     })
 
     for model in trained_models:
-        # Attach latest metric and figures (as you did before)
+        # Attach latest metric and figures
         model.latest_metric = model.metrics.first()
         model.visualizations = model.figures.all()
         
@@ -132,14 +132,11 @@ def dashboard(request):
             reverse=False  # Lowest error first
         )
         
-        # Add the sorted lists to our new dictionary
         if sorted_class or sorted_reg: # Only add datasets that have models
             sorted_grouped_models[dataset_name] = {
                 'classification': sorted_class,
                 'regression': sorted_reg
             }
-
-    # --- END: Modified Model Sorting Logic ---
 
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
@@ -326,7 +323,7 @@ def train_model(request, dataset_id, algorithm=None):
 
         # Set feature choices before processing the form and ensure initial values are shown
         form.fields['features'].choices = feature_choices
-        # Only set the field's initial selection if not POST (do not override submitted values)
+        # Only set the field's initial selection if not POST
         if request.method != 'POST':
             form.fields['features'].initial = default_features
             
@@ -355,7 +352,6 @@ def train_model(request, dataset_id, algorithm=None):
             'family': model_info['family'],
             'task_type': 'regression'
         }
-    #  ---------------
 
     if request.method == 'POST':
         # Check validation and report errors before proceeding
@@ -388,7 +384,6 @@ def train_model(request, dataset_id, algorithm=None):
             model.save()
             
             try:
-                # FIX: Use .get() to provide default values
                 test_size_val = form.cleaned_data.get('test_size', 0.2)
                 random_state_val = form.cleaned_data.get('random_state', 42)
 
@@ -434,7 +429,6 @@ def train_model(request, dataset_id, algorithm=None):
                         rmse=metrics.get('rmse'),
                         mae=metrics.get('mae'),
                         r2_score=metrics.get('r2_score'),
-                        # Optional: use MSE as loss for consistency
                         loss=metrics.get('mse'),
                         accuracy=None,
                         precision=None,
@@ -523,9 +517,6 @@ def train_model(request, dataset_id, algorithm=None):
                             description='Residuals vs. Fitted'
                         )
                         figure.figure_file.save(f'residuals_vs_fitted_{model.id}.png', rvf_plot)
-
-                
-                # --- Universal Figure Generation ---
                 
                 # Generate and save feature importance (if applicable)
                 # This function works for both regression and classification
@@ -552,8 +543,6 @@ def train_model(request, dataset_id, algorithm=None):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        # form was already initialized above (with feature choices set)
-        # No action needed here for GET
         pass
     
     context = {
@@ -646,7 +635,6 @@ def delete_model(request, model_id):
     if request.method == 'POST':
         model = get_object_or_404(AIModel, id=model_id)
 
-        # Optional: ensure only the model’s owner can delete it
         if model.user != request.user:
             return JsonResponse({'error': 'Unauthorized'}, status=403)
 

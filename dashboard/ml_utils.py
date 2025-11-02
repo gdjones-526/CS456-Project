@@ -9,6 +9,7 @@ import os
 import json
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import label_binarize
 from sklearn.ensemble import (
     RandomForestClassifier, RandomForestRegressor,
     GradientBoostingClassifier, GradientBoostingRegressor,
@@ -26,8 +27,8 @@ from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, 
-    f1_score, confusion_matrix, classification_report,
-    mean_squared_error, r2_score, mean_absolute_error, roc_curve, auc
+    f1_score, confusion_matrix,
+    mean_squared_error, r2_score, mean_absolute_error, roc_curve, auc, roc_auc_score
 )
 import matplotlib
 matplotlib.use('Agg')
@@ -393,10 +394,6 @@ class ModelRegistry:
         },
     }
 
-    # Annotate models with explicit task metadata so consumers (UI / logs)
-    # can read supported tasks directly from the registry entry. This
-    # avoids deriving task information from which dict the entry lives in
-    # and makes client-side rendering simpler.
     for _k, _v in CLASSIFICATION_MODELS.items():
         _v.setdefault('tasks', ['classification'])
         _v.setdefault('task_type', 'classification')
@@ -804,8 +801,6 @@ class ModelTrainer:
         plt.close()
 
         return ContentFile(buffer.read(), name='residuals_vs_fitted.png')
-
-    # --- UPDATED FUNCTION ---
     
     def generate_feature_importance_plot(self):
         """
@@ -868,8 +863,6 @@ class ModelTrainer:
         plt.close()
         
         return ContentFile(buffer.read(), name='feature_importance.png')
-
-    # --- Your existing functions ---
     
     def generate_confusion_matrix_plot(self, max_classes=10):
         """Generate simplified confusion matrix for classification"""
@@ -877,9 +870,6 @@ class ModelTrainer:
         if effective_task != 'classification':
             return None
         
-        # Assuming self.evaluate_model() returns (metrics, cm, y_test)
-        # You might need to adjust this if evaluate_model isn't defined yet
-        # For now, let's predict to get cm
         y_pred = self.model.predict(self.X_test)
         y_test = self.y_test
         cm = confusion_matrix(y_test, y_pred)
@@ -926,8 +916,6 @@ class ModelTrainer:
 
         plt.figure(figsize=(8, 6))
         
-        # Use label_binarize for robust multiclass handling
-        from sklearn.preprocessing import label_binarize
         classes = self.model.classes_
         y_true_bin = label_binarize(y_true, classes=classes)
 
@@ -945,7 +933,6 @@ class ModelTrainer:
             plt.plot(fpr, tpr, color='deeppink', linestyle=':', lw=4, label=f'Micro-average (AUC = {roc_auc:.2f})')
 
             # Plot macro-average
-            from sklearn.metrics import roc_auc_score
             n_classes = len(classes)
             all_fpr = np.unique(np.concatenate([roc_curve(y_true_bin[:, i], y_prob[:, i])[0] for i in range(n_classes)]))
             mean_tpr = np.zeros_like(all_fpr)
@@ -956,8 +943,8 @@ class ModelTrainer:
             roc_auc = auc(all_fpr, mean_tpr)
             plt.plot(all_fpr, mean_tpr, color='navy', lw=2, label=f'Macro-average (AUC = {roc_auc:.2f})')
 
-
-        plt.plot([0, 1], [0, 1], color='grey', lw=2, linestyle='--')
+        plt.figure(figsize=(8,4))
+        plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
         plt.xlabel('False Positive Rate', fontsize=12)
@@ -974,6 +961,32 @@ class ModelTrainer:
         plt.close()
 
         return ContentFile(buffer.read(), name='roc_curve.png')
+    
+    def generate_feature_importance_plot(self):
+        """Generate feature importance plot"""
+        if not hasattr(self.model, 'feature_importances_'):
+            return None
+        
+        importances = self.model.feature_importances_
+        indices = np.argsort(importances)[::-1][:10]
+        
+        plt.figure(figsize=(8, 4))
+        plt.title('Top 10 Feature Importances')
+        plt.bar(range(len(indices)), importances[indices])
+        plt.xticks(range(len(indices)), 
+                   [self.feature_names[i] for i in indices], 
+                   rotation=45, ha='right')
+        plt.xlabel('Features')
+        plt.ylabel('Importance')
+        plt.tight_layout()
+        
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
+        buffer.seek(0)
+        plt.close()
+        
+        return ContentFile(buffer.read(), name='feature_importance.png')
+
 
 def load_model(model_path):
     """Load a saved model"""
