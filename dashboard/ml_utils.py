@@ -700,7 +700,7 @@ class ModelTrainer:
             labels = labels[:max_classes]
             cm = cm[:max_classes, :max_classes]
         
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(8, 4))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                     xticklabels=labels,
                     yticklabels=labels,
@@ -747,7 +747,8 @@ class ModelTrainer:
                 fpr, tpr, _ = roc_curve((y_true == i).astype(int), y_prob[:, i])
                 roc_auc = auc(fpr, tpr)
                 plt.plot(fpr, tpr, lw=2, label=f'Class {i} (AUC = {roc_auc:.2f})')
-
+                
+        plt.figure(figsize=(8,4))
         plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
@@ -759,6 +760,7 @@ class ModelTrainer:
         plt.tight_layout()
 
         buffer = BytesIO()
+
         plt.savefig(buffer, format='png', bbox_inches='tight', dpi=120)
         buffer.seek(0)
         plt.close()
@@ -773,7 +775,7 @@ class ModelTrainer:
         importances = self.model.feature_importances_
         indices = np.argsort(importances)[::-1][:10]
         
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(8, 4))
         plt.title('Top 10 Feature Importances')
         plt.bar(range(len(indices)), importances[indices])
         plt.xticks(range(len(indices)), 
