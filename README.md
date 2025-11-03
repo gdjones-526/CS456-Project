@@ -24,9 +24,10 @@ This web application allows users to upload datasets, train machine learning mod
    # macOS/Linux
    source venv/bin/activate
    
-3. **Install requirements**
+3. **Install requirements and migrate database**
    ```bash
    pip install -r requirements.txt
+   python manage.py migrate
 
 4. **Run Server**
    ```bash
