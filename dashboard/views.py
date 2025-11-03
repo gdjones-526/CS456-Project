@@ -331,7 +331,6 @@ def train_model(request, dataset_id, algorithm=None):
         messages.error(request, f'Error loading dataset: {str(e)}')
         return redirect('file_detail', pk=dataset_id)
     
-    # ---------------
     classification_algorithms = {}
     regression_algorithms = {}
     
@@ -423,6 +422,7 @@ def train_model(request, dataset_id, algorithm=None):
                         loss=metrics.get('loss'),
                     )
                 else:  # regression
+                    print("got here")
                     PerformanceMetric.objects.create(
                         model=model,
                         mse=metrics.get('mse'),
@@ -444,40 +444,7 @@ def train_model(request, dataset_id, algorithm=None):
                 trainer.save_model(model_path)
                 model.model_file = f'trained_models/{model_filename}'
                 
-                # Generate and save confusion matrix
-                # cm_plot = trainer.generate_confusion_matrix_plot()
-                # if cm_plot:
-                #     figure = Figure.objects.create(
-                #         model=model,
-                #         description='Confusion Matrix'
-                #     )
-                #     figure.figure_file.save(f'confusion_matrix_{model.id}.png', cm_plot)
-
-                # # Generate and save ROC curve (classification only)
-                # roc_plot = trainer.generate_roc_curve_plot()
-                # if roc_plot:
-                #     figure = Figure.objects.create(
-                #         model=model,
-                #         description='ROC Curve'
-                #     )
-                #     figure.figure_file.save(f'roc_curve_{model.id}.png', roc_plot)
-
-                
-                # # Generate and save feature importance (if applicable)
-                # fi_plot = trainer.generate_feature_importance_plot()
-                # if fi_plot:
-                #     figure = Figure.objects.create(
-                #         model=model,
-                #         description='Feature Importance'
-                #     )
-                #     figure.figure_file.save(f'feature_importance_{model.id}.png', fi_plot)
-                
-                # # Update model status
-                # model.status = 'completed'
-                # model.save()
-                
-                # --- Task-Specific Figure Generation ---
-                # Get the task type from the trainer object
+        
                 task_type = trainer.task_type 
 
                 if task_type == 'classification':

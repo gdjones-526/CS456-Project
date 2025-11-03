@@ -502,6 +502,8 @@ class ModelTrainer:
         else:
             raise ValueError(f"Unsupported file format: {ext}")
         
+        df = df.dropna(subset=[self.target_column])
+        
         # Validate schema
         schema_validation = self.validator.validate_schema(df)
         if not schema_validation['valid']:
