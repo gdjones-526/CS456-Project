@@ -63,7 +63,7 @@
         <ul class="navbar-nav">
           {% if user.is_authenticated %}
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <span class="user-avatar">{{ user.username|slice:":1"|upper }}</span>
               {{ user.username }}
             </a>
@@ -86,7 +86,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'register' %}">
+            <a class="nav-link" href="{% url 'signup' %}">
               <i class="bi bi-person-plus"></i> Register
             </a>
           </li>
