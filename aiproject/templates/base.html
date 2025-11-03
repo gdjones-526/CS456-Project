@@ -59,42 +59,33 @@
           </li>
         </ul>
 
-        <!-- User Menu -->
-        <ul class="navbar-nav">
-          {% if user.is_authenticated %}
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <span class="user-avatar">{{ user.username|slice:":1"|upper }}</span>
-              {{ user.username }}
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                  {% csrf_token %}
-                  <button type="submit" class="dropdown-item text-danger">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                  </button>
-                </form>
-              </li>
-            </ul>
-          </li>
-          {% else %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'login' %}">
-              <i class="bi bi-box-arrow-in-right"></i> Login
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'signup' %}">
-              <i class="bi bi-person-plus"></i> Register
-            </a>
-          </li>
-          {% endif %}
-        </ul>
-      </div>
-    </div>
-  </nav>
+          <!-- User Menu -->
+          <ul class="navbar-nav ms-auto">
+            {% if user.is_authenticated %}
+            <li class="nav-item">
+              <form method="post" action="{% url 'logout' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger ms-2">
+                  <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+              </form>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="btn btn-outline-light ms-2" href="{% url 'login' %}">
+                <i class="bi bi-box-arrow-in-right"></i> Login
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="btn btn-outline-light ms-2" href="{% url 'signup' %}">
+                <i class="bi bi-person-plus"></i> Register
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </div> <!-- .collapse -->
+      </div> <!-- .container-fluid -->
+    </nav>
 
   <!-- Main Content -->
   <main class="main-content">
