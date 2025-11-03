@@ -915,11 +915,11 @@ class ModelTrainer:
 
         y_prob = self.model.predict_proba(self.X_test)
         y_true = self.y_test
-
-        plt.figure(figsize=(8, 6))
         
         classes = self.model.classes_
         y_true_bin = label_binarize(y_true, classes=classes)
+
+        plt.figure(figsize=(8,4))
 
         if len(classes) == 2:
             # Binary classification
@@ -945,7 +945,6 @@ class ModelTrainer:
             roc_auc = auc(all_fpr, mean_tpr)
             plt.plot(all_fpr, mean_tpr, color='navy', lw=2, label=f'Macro-average (AUC = {roc_auc:.2f})')
 
-        plt.figure(figsize=(8,4))
         plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
