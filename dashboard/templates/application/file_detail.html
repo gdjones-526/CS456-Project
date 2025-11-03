@@ -1,88 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ file.original_name }} - ML Platform</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      background-color: #f8f9fa;
-    }
-    
-    .navbar-custom {
-      background-color: #212529;
-      box-shadow: 0 2px 4px rgba(0,0,0,.1);
-    }
-    
-    .main-container {
-      max-width: 1400px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-    
-    .card {
-      border: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,.1);
-      margin-bottom: 1.5rem;
-    }
-    
-    .stat-card {
-      text-align: center;
-      padding: 1.5rem;
-    }
-    
-    .stat-value {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #0d6efd;
-    }
-    
-    .stat-label {
-      color: #6c757d;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .table-preview {
-      overflow-x: auto;
-      max-height: 500px;
-      border: 1px solid #dee2e6;
-      border-radius: 0.375rem;
-    }
-    
-    .column-badge {
-      display: inline-block;
-      margin: 0.25rem;
-      padding: 0.5rem 0.75rem;
-      background-color: #e9ecef;
-      border-radius: 0.375rem;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9rem;
-    }
-    
-    .action-button {
-      margin-right: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-  </style>
-</head>
-<body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-dark navbar-custom">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="{% url 'dashboard' %}">
-        <i class="bi bi-arrow-left"></i> Back to Dashboard
-      </a>
-      <span class="navbar-text text-white">
-        <i class="bi bi-person-circle"></i> {{ user.username }}
-      </span>
-    </div>
-  </nav>
+{% extends 'base.html' %}
+{% load static %}
 
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'application/file_detail.css' %}">
+
+<body>
   <!-- Main Content -->
   <div class="main-container">
     <!-- Django Messages -->
@@ -312,4 +235,5 @@
     }, 5000);
   </script>
 </body>
-</html>
+
+{% endblock %}
