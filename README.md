@@ -1,4 +1,4 @@
-# CS456 Project: Machine Learning Web Platform
+# Machine Learning Web Platform
 
 ## Overview
 This web application allows users to upload datasets, train machine learning models, and visualize model performance with metrics and plots. It supports both classification and regression tasks and provides an interactive dashboard for managing datasets and models.
